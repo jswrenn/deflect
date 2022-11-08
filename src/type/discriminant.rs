@@ -1,12 +1,109 @@
+use gimli::AttributeValue;
+
+#[derive(Clone)]
+pub struct Discriminant<R>
+where
+    R: gimli::Reader<Offset = usize>,
+{
+    r#type: super::DiscriminantType,
+    alignment: usize,
+    location: gimli::AttributeValue<R>,
+}
+
+impl<R> Discriminant<R>
+where
+    R: gimli::Reader<Offset = usize>,
+{
+    pub(crate) fn from_dw_tag_enumeration_type<'dwarf>(
+        dwarf: &'dwarf gimli::Dwarf<R>,
+        unit: &'dwarf gimli::Unit<R, usize>,
+        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Self {
+        assert_eq!(entry.tag(), gimli::DW_TAG_enumeration_type);
+
+        let r#type = crate::get_type(&entry)
+            .unwrap()
+            .and_then(|offset| unit.entry(offset).ok())
+            .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
+            .unwrap();
+
+        let alignment: usize = entry
+            .attr_value(gimli::DW_AT_alignment)
+            .unwrap()
+            .and_then(|s| s.udata_value())
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        let location = gimli::AttributeValue::Udata(0);
+
+        Self {
+            r#type,
+            alignment,
+            location,
+        }
+    }
+
+    pub(crate) fn from_dw_tag_variant_part<'dwarf>(
+        dwarf: &'dwarf gimli::Dwarf<R>,
+        unit: &'dwarf gimli::Unit<R, usize>,
+        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Self {
+        assert_eq!(entry.tag(), gimli::DW_TAG_variant_part);
+
+        let dw_tag_member = crate::get_attr_ref(&entry, gimli::DW_AT_discr)
+            .unwrap()
+            .and_then(|offset| unit.entry(offset).ok())
+            .unwrap();
+
+        let r#type = crate::get_type(&dw_tag_member)
+            .expect("no type")
+            .and_then(|offset| unit.entry(offset).ok())
+            .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
+            .expect("no entry");
+
+        let alignment: usize = dw_tag_member
+            .attr_value(gimli::DW_AT_alignment)
+            .unwrap()
+            .and_then(|s| s.udata_value())
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        let location = dw_tag_member
+            .attr_value(gimli::DW_AT_data_member_location)
+            .unwrap()
+            .unwrap();
+
+        Self {
+            r#type,
+            alignment,
+            location,
+        }
+    }
+
+    pub fn r#type(&self) -> &super::DiscriminantType {
+        &self.r#type
+    }
+
+    pub fn alignment(&self) -> usize {
+        self.alignment
+    }
+
+    pub fn location(&self) -> &gimli::AttributeValue<R> {
+        &self.location
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
-pub enum Discriminant {
+pub enum DiscriminantValue {
     U8(u8),
     U16(u16),
     U32(u32),
     U64(u64),
 }
 
-impl<R> From<gimli::AttributeValue<R>> for Discriminant
+impl<R> From<gimli::AttributeValue<R>> for DiscriminantValue
 where
     R: gimli::Reader<Offset = usize>,
 {

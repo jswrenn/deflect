@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::r#type::Discriminant;
+use crate::r#type::DiscriminantValue;
 pub struct Enum<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
@@ -37,19 +37,21 @@ where
     pub fn variant(&self) -> super::Variant<'dwarf, 'value, R> {
         let mut default = None;
         let mut matched = None;
+
+        let discriminant = self.r#type.discriminant();
+        let location = discriminant.location();
+        let ptr = self.value.as_ptr() as u64;
+        let disr_addr = crate::eval_addr(&self.r#type.unit, location.clone(), ptr)
+            .unwrap()
+            .unwrap();
+
         self.r#type.variants(|variant| {
-            if let Some(discriminant) = variant.discriminant() {
+            if let Some(discriminant) = variant.discriminant_value() {
                 let matches = match discriminant {
-                    Discriminant::U8(v) => (unsafe { *(self.value as *const _ as *const u8) } == v),
-                    Discriminant::U16(v) => {
-                        (unsafe { *(self.value as *const _ as *const u16) } == v)
-                    }
-                    Discriminant::U32(v) => {
-                        (unsafe { *(self.value as *const _ as *const u32) } == v)
-                    }
-                    Discriminant::U64(v) => {
-                        (unsafe { *(self.value as *const _ as *const u64) } == v)
-                    }
+                    DiscriminantValue::U8(v) => (unsafe { *(disr_addr as *const u8) } == v),
+                    DiscriminantValue::U16(v) => (unsafe { *(disr_addr as *const u16) } == v),
+                    DiscriminantValue::U32(v) => (unsafe { *(disr_addr as *const u32) } == v),
+                    DiscriminantValue::U64(v) => (unsafe { *(disr_addr as *const u64) } == v),
                 };
                 if matches {
                     matched = Some(variant.clone());

@@ -1,12 +1,17 @@
 use std::fmt;
 
+use gimli::DW_TAG_variant_part;
+
+use super::discriminant;
+
 pub struct Enum<'dwarf, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
 {
     dwarf: &'dwarf gimli::Dwarf<R>,
-    unit: &'dwarf gimli::Unit<R, usize>,
+    pub(crate) unit: &'dwarf gimli::Unit<R, usize>,
     entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    discriminant: super::Discriminant<R>,
 }
 
 impl<'dwarf, R> fmt::Debug for Enum<'dwarf, R>
@@ -31,9 +36,36 @@ where
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Self {
-        let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
+        let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
+        let root = tree.root().unwrap();
         //crate::inspect_tree(&mut tree, dwarf, unit);
-        Self { dwarf, unit, entry }
+
+        let discriminant = match entry.tag() {
+            gimli::DW_TAG_enumeration_type => {
+                super::Discriminant::from_dw_tag_enumeration_type(dwarf, unit, entry.clone())
+            }
+            gimli::DW_TAG_structure_type => {
+                let dw_tag_variant_part = 'variant: {
+                    let mut children = root.children();
+                    while let Some(child) = children.next().unwrap() {
+                        if child.entry().tag() == gimli::DW_TAG_variant_part {
+                            break 'variant Some(child.entry().clone());
+                        }
+                    }
+                    None
+                }
+                .unwrap();
+                super::Discriminant::from_dw_tag_variant_part(dwarf, unit, dw_tag_variant_part)
+            }
+            _ => panic!(),
+        };
+
+        Self {
+            dwarf,
+            unit,
+            entry,
+            discriminant,
+        }
     }
 
     pub fn name(&self) -> String {
@@ -44,46 +76,6 @@ where
             .unwrap()
             .to_owned()
             .to_string()
-    }
-
-    pub fn variants_2(&self) {
-        let mut tree = self.unit.entries_tree(Some(self.entry.offset())).unwrap();
-        let root = tree.root().unwrap();
-        match self.entry.tag() {
-            gimli::DW_TAG_enumeration_type => {
-                let mut children = root.children();
-                while let Some(child) = children.next().unwrap() {
-                    let child = child.entry();
-                    assert_eq!(child.tag(), gimli::DW_TAG_enumerator);
-                    let discriminant = match child.attr_value(gimli::DW_AT_const_value).unwrap() {
-                        Some(gimli::AttributeValue::Data1(value)) => {
-                            Some(super::discriminant::Discriminant::U8(value))
-                        }
-                        Some(gimli::AttributeValue::Data2(value)) => {
-                            Some(super::discriminant::Discriminant::U16(value))
-                        }
-                        Some(gimli::AttributeValue::Data4(value)) => {
-                            Some(super::discriminant::Discriminant::U32(value))
-                        }
-                        Some(gimli::AttributeValue::Data8(value)) => {
-                            Some(super::discriminant::Discriminant::U64(value))
-                        }
-                        None => None,
-                        _ => panic!(),
-                    };
-                    let _variant = super::variant::Variant::new(
-                        self.dwarf,
-                        self.unit,
-                        child.clone(),
-                        discriminant,
-                    );
-                }
-            }
-            gimli::DW_TAG_structure_type => {
-                todo!();
-            }
-            _ => panic!(),
-        }
     }
 
     pub fn variants<F>(&self, mut f: F)
@@ -109,14 +101,14 @@ where
                     };
 
                     let _discriminant = Some(match discriminant_type {
-                        crate::r#type::Type::U8 => super::Discriminant::U8(value as _),
-                        crate::r#type::Type::U16 => super::Discriminant::U16(value as _),
-                        crate::r#type::Type::U32 => super::Discriminant::U32(value as _),
-                        crate::r#type::Type::U64 => super::Discriminant::U64(value as _),
+                        crate::r#type::Type::U8 => super::DiscriminantValue::U8(value as _),
+                        crate::r#type::Type::U16 => super::DiscriminantValue::U16(value as _),
+                        crate::r#type::Type::U32 => super::DiscriminantValue::U32(value as _),
+                        crate::r#type::Type::U64 => super::DiscriminantValue::U64(value as _),
                         _ => panic!(),
                     });
 
-                    let discriminant: Option<super::Discriminant> = child
+                    let discriminant_value: Option<super::DiscriminantValue> = child
                         .attr_value(gimli::DW_AT_const_value)
                         .unwrap()
                         .map(|value| value.into());
@@ -124,7 +116,8 @@ where
                         self.dwarf,
                         self.unit,
                         child.clone(),
-                        discriminant,
+                        self.discriminant.clone(),
+                        discriminant_value,
                     ));
                 }
             }
@@ -147,7 +140,7 @@ where
                 while let Some(child) = variants.next().unwrap() {
                     let entry = child.entry();
                     if child.entry().tag() == gimli::DW_TAG_variant {
-                        let discriminant: Option<super::Discriminant> = entry
+                        let discriminant_value: Option<super::DiscriminantValue> = entry
                             .attr_value(gimli::DW_AT_discr_value)
                             .unwrap()
                             .map(|value| value.into());
@@ -162,7 +155,8 @@ where
                             self.dwarf,
                             self.unit,
                             entry,
-                            discriminant,
+                            self.discriminant.clone(),
+                            discriminant_value,
                         ));
                     }
                 }
@@ -189,5 +183,9 @@ where
             .unwrap()
             .try_into()
             .unwrap()
+    }
+
+    pub fn discriminant(&self) -> &super::Discriminant<R> {
+        &self.discriminant
     }
 }

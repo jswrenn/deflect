@@ -8,7 +8,8 @@ where
     dwarf: &'dwarf gimli::Dwarf<R>,
     unit: &'dwarf gimli::Unit<R, usize>,
     entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    discriminant: Option<super::discriminant::Discriminant>,
+    discriminant: super::Discriminant<R>,
+    discriminant_value: Option<super::discriminant::DiscriminantValue>,
 }
 
 impl<'dwarf, 'value, R> fmt::Debug for Variant<'dwarf, R>
@@ -16,7 +17,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = format!("{} = {:?}", self.name(), &self.discriminant);
+        let name = format!("{} = {:?}", self.name(), &self.discriminant_value);
         let mut ds = f.debug_struct(name.as_str());
         self.fields(|field| {
             ds.field(field.name().as_str(), &field.r#type());
@@ -33,13 +34,15 @@ where
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-        discriminant: Option<super::discriminant::Discriminant>,
+        discriminant: super::Discriminant<R>,
+        discriminant_value: Option<super::discriminant::DiscriminantValue>,
     ) -> Self {
         Self {
             dwarf,
             unit,
             entry,
             discriminant,
+            discriminant_value,
         }
     }
 
@@ -53,8 +56,12 @@ where
             .to_string()
     }
 
-    pub fn discriminant(&self) -> Option<super::discriminant::Discriminant> {
-        self.discriminant
+    pub fn discriminant(&self) -> &super::discriminant::Discriminant<R> {
+        &self.discriminant
+    }
+
+    pub fn discriminant_value(&self) -> Option<super::discriminant::DiscriminantValue> {
+        self.discriminant_value
     }
 
     pub fn fields<F>(&self, mut f: F)

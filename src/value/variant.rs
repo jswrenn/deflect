@@ -36,8 +36,12 @@ where
         self.r#type.name()
     }
 
-    pub fn discriminant(&self) -> Option<crate::r#type::Discriminant> {
-        self.r#type.discriminant()
+    pub fn discriminant(&self) -> &crate::r#type::Discriminant<R> {
+        &self.r#type.discriminant()
+    }
+
+    pub fn discriminant_value(&self) -> Option<crate::r#type::DiscriminantValue> {
+        self.r#type.discriminant_value()
     }
 
     pub fn fields<F>(&self, mut f: F)

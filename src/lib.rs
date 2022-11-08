@@ -139,6 +139,36 @@ fn get_attr_ref<R: gimli::Reader<Offset = usize>>(
     Ok(None)
 }
 
+fn eval_addr<R>(
+    unit: &gimli::Unit<R>,
+    attr: AttributeValue<R>,
+    start: u64,
+) -> Result<Option<u64>, anyhow::Error>
+where
+    R: gimli::Reader<Offset = usize>,
+{
+    if let Some(loc) = attr.exprloc_value() {
+        // TODO: We probably don't need full evaluation here and can
+        // just support PlusConstant.
+        let mut eval = loc.evaluation(unit.encoding());
+        eval.set_initial_value(start);
+        if let gimli::EvaluationResult::Complete = eval.evaluate()? {
+            let result = eval.result();
+            match result[..] {
+                [gimli::Piece {
+                    size_in_bits: None,
+                    bit_offset: None,
+                    location: gimli::Location::Address { address },
+                }] => return Ok(Some(address)),
+                _ => eprintln!("Warning: Unsupported evaluation result {:?}", result,),
+            }
+        }
+    } else if let AttributeValue::Udata(offset) = attr {
+        return Ok(Some(start + offset));
+    }
+    Ok(None)
+}
+
 fn fi_to_string<'a, R: gimli::Reader<Offset = usize> + 'a>(
     file_index: u64,
     unit: &'a gimli::Unit<R>,

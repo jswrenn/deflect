@@ -1,18 +1,11 @@
-enum Bar {
-    A = 0xFF00,
-    B = 0x00FF,
-}
-
-enum Foo {
-    A(Bar),
-    B,
-}
-
 fn main() {
-    let foo = Foo::A(Bar::B);
+    let x = 42;
+    let foo = async {
+        drop(x);
+    };
 
     deflect::with_context(|ctx| {
-        let val = deflect::reflect::<Foo, _>(&ctx, &foo);
+        let val = deflect::reflect::<_, _>(&ctx, &foo);
         println!("{:#?}", val);
     })
     .unwrap();

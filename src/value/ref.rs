@@ -4,7 +4,7 @@ pub struct Ref<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
 {
-    r#type: crate::r#type::Ref<'dwarf, R>,
+    r#type: crate::schema::Ref<'dwarf, R>,
     value: crate::Bytes<'value>,
 }
 
@@ -23,7 +23,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
-        r#type: crate::r#type::Ref<'dwarf, R>,
+        r#type: crate::schema::Ref<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
         Self { r#type, value }
@@ -33,7 +33,7 @@ where
         todo!()
     }
 
-    pub fn r#type(&self) -> crate::r#type::Type<'dwarf, R> {
+    pub fn r#type(&self) -> crate::schema::Type<'dwarf, R> {
         self.r#type.r#type()
     }
 

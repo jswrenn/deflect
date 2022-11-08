@@ -3,7 +3,7 @@ pub struct Struct<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
 {
-    r#type: crate::r#type::Struct<'dwarf, R>,
+    r#type: crate::schema::Struct<'dwarf, R>,
     value: crate::Bytes<'value>,
 }
 
@@ -26,7 +26,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
-        r#type: crate::r#type::Struct<'dwarf, R>,
+        r#type: crate::schema::Struct<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
         Self { r#type, value }

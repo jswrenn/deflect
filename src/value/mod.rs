@@ -46,28 +46,28 @@ where
 {
     /// Safety: `value` absolutely must have the correct `type`.
     pub(crate) unsafe fn with_type(
-        r#type: crate::r#type::Type<'dwarf, R>,
+        r#type: crate::schema::Type<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
         match r#type {
-            crate::r#type::Type::I8 => Self::I8(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::I16 => Self::I16(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::I32 => Self::I32(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::I64 => Self::I64(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::I128 => Self::I128(unsafe { *(value as *const _ as *const _) }),
-            //crate::r#type::Type::ISize => Self::I128(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::F32 => Self::F32(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::F64 => Self::F32(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::I8 => Self::I8(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::I16 => Self::I16(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::I32 => Self::I32(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::I64 => Self::I64(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::I128 => Self::I128(unsafe { *(value as *const _ as *const _) }),
+            //crate::schema::Type::ISize => Self::I128(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::F32 => Self::F32(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::F64 => Self::F32(unsafe { *(value as *const _ as *const _) }),
 
-            crate::r#type::Type::U8 => Self::I8(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::U16 => Self::I16(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::U32 => Self::I32(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::U64 => Self::I64(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::U128 => Self::I128(unsafe { *(value as *const _ as *const _) }),
-            //crate::r#type::Type::USize => Self::I128(unsafe { *(value as *const _ as *const _) }),
-            crate::r#type::Type::Struct(r#type) => Self::Struct(Struct::new(r#type, value)),
-            crate::r#type::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
-            crate::r#type::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
+            crate::schema::Type::U8 => Self::I8(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::U16 => Self::I16(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::U32 => Self::I32(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::U64 => Self::I64(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::U128 => Self::I128(unsafe { *(value as *const _ as *const _) }),
+            //crate::schema::Type::USize => Self::I128(unsafe { *(value as *const _ as *const _) }),
+            crate::schema::Type::Struct(r#type) => Self::Struct(Struct::new(r#type, value)),
+            crate::schema::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
+            crate::schema::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
             _ => todo!(),
         }
     }

@@ -11,14 +11,16 @@ use std::{
     rc::Rc,
 };
 
-mod r#type;
+mod schema;
 mod r#value;
 
-pub use r#type::Type;
+pub use r#schema::Type;
 pub use r#value::Value;
 
 type Byte = MaybeUninit<u8>;
 type Bytes<'value> = &'value [Byte];
+
+pub type Addr2LineContext = Context<EndianReader<RunTimeEndian, Rc<[u8]>>>;
 
 pub fn with_context<F>(f: F) -> anyhow::Result<()>
 where
@@ -93,7 +95,7 @@ where
 
 pub fn reflect_type<'ctx, T: ?Sized, R>(
     ctx: &'ctx Context<R>,
-) -> anyhow::Result<r#type::Type<'ctx, R>>
+) -> anyhow::Result<Type<'ctx, R>>
 where
     R: gimli::Reader<Offset = usize>,
 {
@@ -103,7 +105,7 @@ where
     inspect_tree(&mut tree, ctx.dwarf(), unit);
 
     let die = unit.entry(offset).unwrap();
-    Ok(r#type::Type::from_die(ctx.dwarf(), unit, die))
+    Ok(Type::from_die(ctx.dwarf(), unit, die))
 }
 
 fn current_binary() -> Option<std::fs::File> {

@@ -101,10 +101,10 @@ where
                     };
 
                     let _discriminant = Some(match discriminant_type {
-                        crate::r#type::Type::U8 => super::DiscriminantValue::U8(value as _),
-                        crate::r#type::Type::U16 => super::DiscriminantValue::U16(value as _),
-                        crate::r#type::Type::U32 => super::DiscriminantValue::U32(value as _),
-                        crate::r#type::Type::U64 => super::DiscriminantValue::U64(value as _),
+                        super::Type::U8 => super::DiscriminantValue::U8(value as _),
+                        super::Type::U16 => super::DiscriminantValue::U16(value as _),
+                        super::Type::U32 => super::DiscriminantValue::U32(value as _),
+                        super::Type::U64 => super::DiscriminantValue::U64(value as _),
                         _ => panic!(),
                     });
 

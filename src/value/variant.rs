@@ -4,7 +4,7 @@ pub struct Variant<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
 {
-    r#type: crate::r#type::Variant<'dwarf, R>,
+    r#type: crate::schema::Variant<'dwarf, R>,
     value: crate::Bytes<'value>,
 }
 
@@ -26,7 +26,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
-        r#type: crate::r#type::Variant<'dwarf, R>,
+        r#type: crate::schema::Variant<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
         Self { r#type, value }
@@ -36,11 +36,11 @@ where
         self.r#type.name()
     }
 
-    pub fn discriminant(&self) -> &crate::r#type::Discriminant<R> {
+    pub fn discriminant(&self) -> &crate::schema::Discriminant<R> {
         &self.r#type.discriminant()
     }
 
-    pub fn discriminant_value(&self) -> Option<crate::r#type::DiscriminantValue> {
+    pub fn discriminant_value(&self) -> Option<crate::schema::DiscriminantValue> {
         self.r#type.discriminant_value()
     }
 

@@ -20,7 +20,7 @@ where
         let name = format!("{} = {:?}", self.name(), &self.discriminant_value);
         let mut ds = f.debug_struct(name.as_str());
         self.fields(|field| {
-            ds.field(field.name().as_str(), &field.r#type());
+            ds.field(&field.name().unwrap().to_string(), &field.r#type());
         });
         ds.finish()
     }
@@ -49,10 +49,8 @@ where
     pub fn name(&self) -> String {
         crate::get_name(&self.entry, self.dwarf, self.unit)
             .unwrap()
-            .unwrap()
             .to_string_lossy()
             .unwrap()
-            .to_owned()
             .to_string()
     }
 
@@ -77,7 +75,8 @@ where
                     self.dwarf,
                     self.unit,
                     child.entry().clone(),
-                ));
+                )
+                .unwrap());
             }
         }
     }

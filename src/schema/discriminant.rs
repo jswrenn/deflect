@@ -1,12 +1,10 @@
-use gimli::AttributeValue;
-
 #[derive(Clone)]
 pub struct Discriminant<R>
 where
     R: gimli::Reader<Offset = usize>,
 {
     r#type: super::DiscriminantType,
-    alignment: usize,
+    align: u64,
     location: gimli::AttributeValue<R>,
 }
 
@@ -17,38 +15,30 @@ where
     pub(crate) fn from_dw_tag_enumeration_type<'dwarf>(
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
+        entry: &'dwarf gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Result<Self, crate::Error> {
         assert_eq!(entry.tag(), gimli::DW_TAG_enumeration_type);
 
         let r#type = crate::get_type(&entry)
-            .unwrap()
-            .and_then(|offset| unit.entry(offset).ok())
+            .map(|offset| unit.entry(offset).unwrap())
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .unwrap();
 
-        let alignment: usize = entry
-            .attr_value(gimli::DW_AT_alignment)
-            .unwrap()
-            .and_then(|s| s.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap();
-
+        let align = crate::get_align(&entry)?;
         let location = gimli::AttributeValue::Udata(0);
 
-        Self {
+        Ok(Self {
             r#type,
-            alignment,
+            align,
             location,
-        }
+        })
     }
 
     pub(crate) fn from_dw_tag_variant_part<'dwarf>(
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
+        entry: &'dwarf gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Result<Self, crate::Error> {
         assert_eq!(entry.tag(), gimli::DW_TAG_variant_part);
 
         let dw_tag_member = crate::get_attr_ref(&entry, gimli::DW_AT_discr)
@@ -56,30 +46,22 @@ where
             .and_then(|offset| unit.entry(offset).ok())
             .unwrap();
 
-        let r#type = crate::get_type(&dw_tag_member)
-            .expect("no type")
-            .and_then(|offset| unit.entry(offset).ok())
+        let r#type = unit.entry(crate::get_type(&dw_tag_member).unwrap())
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .expect("no entry");
 
-        let alignment: usize = dw_tag_member
-            .attr_value(gimli::DW_AT_alignment)
-            .unwrap()
-            .and_then(|s| s.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let align = crate::get_align(&entry).unwrap_or(1);
 
         let location = dw_tag_member
             .attr_value(gimli::DW_AT_data_member_location)
             .unwrap()
             .unwrap();
 
-        Self {
+        Ok(Self {
             r#type,
-            alignment,
+            align,
             location,
-        }
+        })
     }
 
     pub fn r#type(&self) -> &super::DiscriminantType {
@@ -87,7 +69,7 @@ where
     }
 
     pub fn alignment(&self) -> usize {
-        self.alignment
+        self.align as _
     }
 
     pub fn location(&self) -> &gimli::AttributeValue<R> {

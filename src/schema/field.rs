@@ -1,12 +1,16 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
+use gimli::UnitOffset;
 pub struct Field<'dwarf, R: gimli::Reader<Offset = usize>>
 where
     R: gimli::Reader<Offset = usize>,
 {
     dwarf: &'dwarf gimli::Dwarf<R>,
-    pub(crate) unit: &'dwarf gimli::Unit<R, usize>,
-    entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    unit: &'dwarf gimli::Unit<R, usize>,
+
+    name: R,
+    offset: gimli::AttributeValue<R>,
+    r#type: UnitOffset,
 }
 
 impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, R>
@@ -14,7 +18,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(self.name().as_str()).finish()
+        f.debug_struct(&self.name().unwrap().to_string()).finish()
     }
 }
 
@@ -26,33 +30,24 @@ where
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
-        assert_eq!(entry.tag(), gimli::DW_TAG_member);
-        Self { dwarf, unit, entry }
+    ) -> Result<Self, crate::Error> {
+        crate::check_tag(&entry, gimli::DW_TAG_member)?;
+        let name = crate::get_name(&entry, dwarf, unit)?;
+        let offset = crate::get_data_member_location(&entry)?;
+        let r#type = crate::get_type(&entry)?;
+        Ok(Self { dwarf, unit, name, offset, r#type })
     }
 
-    pub fn name(&self) -> String {
-        crate::get_name(&self.entry, self.dwarf, self.unit)
-            .unwrap()
-            .unwrap()
-            .to_string_lossy()
-            .unwrap()
-            .to_owned()
-            .to_string()
+    pub fn name(&self) -> Result<Cow<str>, gimli::Error> {
+        self.name.to_string_lossy()
     }
 
     pub fn offset(&self) -> usize {
-        self.entry
-            .attr(gimli::DW_AT_data_member_location)
-            .unwrap()
-            .unwrap()
-            .udata_value()
-            .unwrap() as _
+        self.offset.udata_value().unwrap() as usize
     }
 
     pub fn r#type(&self) -> super::Type<'dwarf, R> {
-        let offset = crate::get_type(&self.entry).unwrap().unwrap();
-        let entry = self.unit.entry(offset).unwrap();
-        super::Type::from_die(self.dwarf, self.unit, entry)
+        let entry = self.unit.entry(self.r#type).unwrap();
+        super::Type::from_die(self.dwarf, self.unit, entry).unwrap()
     }
 }

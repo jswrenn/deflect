@@ -29,7 +29,7 @@ where
     }
 
     pub fn name(&self) -> String {
-        self.r#type.name()
+        self.r#type.name().unwrap().to_string()
     }
 
     pub fn r#type(&self) -> crate::schema::Type<'dwarf, R> {

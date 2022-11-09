@@ -1,8 +1,4 @@
-use std::fmt;
-
-use gimli::DW_TAG_variant_part;
-
-use super::discriminant;
+use std::{borrow::Cow, fmt};
 
 pub struct Enum<'dwarf, R: gimli::Reader<Offset = usize>>
 where
@@ -11,6 +7,7 @@ where
     dwarf: &'dwarf gimli::Dwarf<R>,
     pub(crate) unit: &'dwarf gimli::Unit<R, usize>,
     entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    name: R,
     discriminant: super::Discriminant<R>,
 }
 
@@ -19,7 +16,7 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut ds = f.debug_tuple(&self.name());
+        let mut ds = f.debug_tuple(&self.name().unwrap());
         self.variants(|variant| {
             ds.field(&variant);
         });
@@ -31,51 +28,54 @@ impl<'dwarf, R> Enum<'dwarf, R>
 where
     R: gimli::Reader<Offset = usize>,
 {
-    pub(crate) fn new(
+    pub(crate) fn from_dw_tag_enumeration_type(
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
-        let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-        let root = tree.root().unwrap();
-        //crate::inspect_tree(&mut tree, dwarf, unit);
-
-        let discriminant = match entry.tag() {
-            gimli::DW_TAG_enumeration_type => {
-                super::Discriminant::from_dw_tag_enumeration_type(dwarf, unit, entry.clone())
-            }
-            gimli::DW_TAG_structure_type => {
-                let dw_tag_variant_part = 'variant: {
-                    let mut children = root.children();
-                    while let Some(child) = children.next().unwrap() {
-                        if child.entry().tag() == gimli::DW_TAG_variant_part {
-                            break 'variant Some(child.entry().clone());
-                        }
-                    }
-                    None
-                }
-                .unwrap();
-                super::Discriminant::from_dw_tag_variant_part(dwarf, unit, dw_tag_variant_part)
-            }
-            _ => panic!(),
-        };
-
-        Self {
+    ) -> Result<Self, crate::Error> {
+        crate::check_tag(&entry, gimli::DW_TAG_enumeration_type)?;
+        let name = crate::get_name(&entry, dwarf, unit)?;
+        let discriminant = super::Discriminant::from_dw_tag_enumeration_type(dwarf, unit, &entry)?;
+        Ok(Self {
             dwarf,
             unit,
             entry,
+            name,
             discriminant,
-        }
+        })
     }
 
-    pub fn name(&self) -> String {
-        crate::get_name(&self.entry, self.dwarf, self.unit)
-            .unwrap()
-            .unwrap()
-            .to_string_lossy()
-            .unwrap()
-            .to_owned()
-            .to_string()
+    pub(crate) fn from_dw_tag_structure_type(
+        dwarf: &'dwarf gimli::Dwarf<R>,
+        unit: &'dwarf gimli::Unit<R, usize>,
+        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Result<Self, crate::Error> {
+        crate::check_tag(&entry, gimli::DW_TAG_structure_type)?;
+        let name = crate::get_name(&entry, dwarf, unit)?;
+        let discriminant = 'variant: {
+            let mut tree = unit.entries_tree(Some(entry.offset()))?;
+            let root = tree.root()?;
+            let mut children = root.children();
+            while let Some(child) = children.next()? {
+                let entry = child.entry();
+                if child.entry().tag() == gimli::DW_TAG_variant_part {
+                    break 'variant super::Discriminant::from_dw_tag_variant_part(dwarf, unit, entry)?;
+                }
+            }
+            return Err(crate::ErrorKind::MissingChild { tag: gimli::DW_TAG_variant_part })?;
+        };
+
+        Ok(Self {
+            dwarf,
+            unit,
+            entry,
+            name,
+            discriminant,
+        })
+    }
+
+    pub fn name(&self) -> Result<Cow<str>, gimli::Error> {
+        self.name.to_string_lossy()
     }
 
     pub fn variants<F>(&self, mut f: F)
@@ -86,10 +86,10 @@ where
         let root = tree.root().unwrap();
         match self.entry.tag() {
             gimli::DW_TAG_enumeration_type => {
-                let discriminant_type = crate::get_type(&self.entry).unwrap().unwrap();
+                let discriminant_type = crate::get_type(&self.entry).unwrap();
                 let discriminant_type = self.unit.entry(discriminant_type).unwrap();
                 let discriminant_type =
-                    super::Type::from_die(self.dwarf, self.unit, discriminant_type);
+                    super::Type::from_die(self.dwarf, self.unit, discriminant_type).unwrap();
 
                 let mut children = root.children();
                 while let Some(child) = children.next().unwrap() {
@@ -148,7 +148,7 @@ where
                         let mut variant_children = child.children();
                         let variant_entry = variant_children.next().unwrap().unwrap();
                         let variant_entry = variant_entry.entry();
-                        let variant_ty = crate::get_type(variant_entry).unwrap().unwrap();
+                        let variant_ty = crate::get_type(variant_entry).unwrap();
                         let entry = self.unit.entry(variant_ty).unwrap();
 
                         f(super::variant::Variant::new(

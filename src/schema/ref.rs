@@ -33,8 +33,8 @@ where
     }
 
     pub fn r#type(&self) -> super::Type<'dwarf, R> {
-        let offset = crate::get_type(&self.entry).unwrap().unwrap();
+        let offset = crate::get_type(&self.entry).unwrap();
         let entry = self.unit.entry(offset).unwrap();
-        super::Type::from_die(self.dwarf, self.unit, entry)
+        super::Type::from_die(self.dwarf, self.unit, entry).unwrap()
     }
 }

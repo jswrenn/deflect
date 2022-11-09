@@ -1,4 +1,4 @@
-fn main() {
+fn main() -> Result<(), deflect::Error> {
     let x = 42;
     let foo = async {
         drop(x);
@@ -9,4 +9,5 @@ fn main() {
         println!("{:#?}", val);
     })
     .unwrap();
+    Ok(())
 }

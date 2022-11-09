@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 pub struct Struct<'dwarf, R: gimli::Reader<Offset = usize>>
 where
@@ -7,6 +7,10 @@ where
     dwarf: &'dwarf gimli::Dwarf<R>,
     unit: &'dwarf gimli::Unit<R, usize>,
     entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+
+    name: R,
+    size: u64,
+    align: u64,
 }
 
 impl<'dwarf, 'value, R> fmt::Debug for Struct<'dwarf, R>
@@ -14,9 +18,9 @@ where
     R: gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut ds = f.debug_struct(&self.name());
+        let mut ds = f.debug_struct(&self.name().unwrap());
         self.fields(|field| {
-            ds.field(field.name().as_str(), &field.r#type());
+            ds.field(field.name().unwrap().as_ref(), &field.r#type());
         });
         ds.finish()
     }
@@ -30,23 +34,18 @@ where
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
-        Self { dwarf, unit, entry }
+    ) -> Result<Self, crate::Error> {
+        println!("{:?}", entry.tag().static_string());
+        crate::check_tag(&entry, gimli::DW_TAG_structure_type)?;
+        let name = crate::get_name(&entry, dwarf, unit)?;
+        let size = crate::get_size(&entry)?;
+        let align = crate::get_align(&entry)?;
+        Ok(Self { dwarf, unit, name, size, align, entry })
     }
 
-    pub fn name(&self) -> String {
-        crate::get_name(&self.entry, self.dwarf, self.unit)
-            .unwrap()
-            .unwrap()
-            .to_string_lossy()
-            .unwrap()
-            .to_owned()
-            .to_string()
+    pub fn name(&self) -> Result<Cow<str>, gimli::Error> {
+        self.name.to_string_lossy()
     }
-
-    /*pub fn fields_2(&self) -> super::Fields<'dwarf, R> {
-        super::Fields::new
-    }*/
 
     pub fn fields<F>(&self, mut f: F)
     where
@@ -61,29 +60,18 @@ where
                     self.dwarf,
                     self.unit,
                     child.entry().clone(),
-                )),
+                )
+                .unwrap()),
                 _ => continue,
             }
         }
     }
 
     pub fn size(&self) -> usize {
-        self.entry
-            .attr_value(gimli::DW_AT_byte_size)
-            .unwrap()
-            .and_then(|r| r.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap()
+        self.size as _
     }
 
     pub fn align(&self) -> usize {
-        self.entry
-            .attr_value(gimli::DW_AT_alignment)
-            .unwrap()
-            .and_then(|r| r.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap()
+        self.align as _
     }
 }

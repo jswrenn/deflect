@@ -31,7 +31,7 @@ where
     }
 
     pub fn name(&self) -> String {
-        self.r#type.name()
+        self.r#type.name().unwrap().to_string()
     }
 
     pub fn variant(&self) -> super::Variant<'dwarf, 'value, R> {

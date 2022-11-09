@@ -60,7 +60,7 @@ impl DiscriminantType {
     {
         match entry.tag() {
             gimli::DW_TAG_base_type => {
-                let slice = crate::get_name(&entry, dwarf, unit).unwrap().unwrap();
+                let slice = crate::get_name(&entry, dwarf, unit).unwrap();
                 let slice = slice.to_slice().unwrap();
                 match slice.as_ref() {
                     b"u8" => Self::U8,
@@ -83,11 +83,11 @@ where
         dwarf: &'dwarf gimli::Dwarf<R>,
         unit: &'dwarf gimli::Unit<R>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Self {
+    ) -> Result<Self, crate::Error> {
         let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-        match entry.tag() {
+        Ok(match entry.tag() {
             gimli::DW_TAG_base_type => {
-                let slice = crate::get_name(&entry, dwarf, unit).unwrap().unwrap();
+                let slice = crate::get_name(&entry, dwarf, unit).unwrap();
 
                 let slice = slice.to_slice().unwrap();
 
@@ -120,21 +120,21 @@ where
                 }
 
                 if let Some(_variants) = variants {
-                    Self::Enum(r#enum::Enum::new(dwarf, unit, entry))
+                    Self::Enum(r#enum::Enum::from_dw_tag_structure_type(dwarf, unit, entry)?)
                 } else {
                     Self::Struct(r#struct::Struct::from_dw_tag_structure_type(
                         dwarf, unit, entry,
-                    ))
+                    )?)
                 }
             }
-            gimli::DW_TAG_enumeration_type => Self::Enum(r#enum::Enum::new(dwarf, unit, entry)),
+            gimli::DW_TAG_enumeration_type => Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap()),
             gimli::DW_TAG_pointer_type => {
                 //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 //crate::inspect_tree(&mut tree, dwarf, unit);
                 Self::Ref(Ref::from_dw_pointer_type(dwarf, unit, entry))
             }
             otherwise @ _ => panic!("{}", otherwise.to_string()),
-        }
+        })
     }
 
     pub fn size(&self) -> usize {

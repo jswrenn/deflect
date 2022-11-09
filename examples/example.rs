@@ -1,7 +1,18 @@
 use deflect::Reflect;
 
+enum CLike {
+    A = 1,
+    B = 2,
+    C = 3,
+}
+
+enum OptionLike {
+    Some(CLike),
+    None,
+}
+
 fn main() -> Result<(), deflect::Error> {
-    let x = 42;
+    let x = OptionLike::Some(CLike::B);
     let foo = async {
         drop(x);
     };

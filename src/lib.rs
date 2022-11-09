@@ -1,8 +1,7 @@
 #![feature(once_cell)]
 #![feature(provide_any, error_generic_member_access)]
 
-use addr2line::Context;
-use gimli::{AttributeValue, EndianReader, Reader, RunTimeEndian, UnitOffset};
+use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
 
 use anyhow::anyhow;
 use std::{
@@ -10,7 +9,7 @@ use std::{
     ffi::c_void,
     mem::{self, MaybeUninit},
     ptr::slice_from_raw_parts,
-    rc::Rc,
+    rc::Rc, sync::LazyLock,
 };
 
 mod schema;
@@ -22,7 +21,32 @@ pub use r#value::Value;
 type Byte = MaybeUninit<u8>;
 type Bytes<'value> = &'value [Byte];
 
-pub type Addr2LineContext = Context<EndianReader<RunTimeEndian, Rc<[u8]>>>;
+pub type DefaultReader = EndianReader<RunTimeEndian, Rc<[u8]>>;
+pub type DefaultContext = addr2line::Context<DefaultReader>;
+
+thread_local! {
+    pub static CONTEXT: DefaultContext = {
+        static MMAP: LazyLock<memmap2::Mmap> = LazyLock::new(|| {
+            let file = current_binary().unwrap();
+            let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
+            mmap
+        });
+
+        static OBJECT: LazyLock<object::File<'static, &'static [u8]>> = LazyLock::new(|| {
+            object::File::parse(MMAP.as_ref()).unwrap()
+        });
+
+        addr2line::Context::new(&*OBJECT).unwrap()
+    };
+}
+
+pub trait Reflect {
+    fn reflect<'s, 'ctx>(&'s self, ctx: &'ctx DefaultContext) -> Result<Value<'ctx, 's, DefaultReader>, Error> {
+        reflect(ctx, self)
+    }
+}
+
+impl<T> Reflect for T {}
 
 #[derive(thiserror::Error, Debug)]
 #[error("{}\n{}", self.error, self.backtrace)]
@@ -78,21 +102,20 @@ impl From<gimli::Error> for ErrorKind {
     }
 }
 
-pub fn with_context<F>(f: F) -> anyhow::Result<()>
+pub fn with_context<F, R>(f: F) -> Result<R, Error>
 where
-    F: FnOnce(Context<EndianReader<RunTimeEndian, Rc<[u8]>>>),
+    F: FnOnce(DefaultContext) -> R,
 {
-    let file = current_binary().ok_or(anyhow!("Could not open current binary"))?;
+    let file = current_binary().unwrap();
     let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
-    let object = object::File::parse(&*mmap)?;
+    let object = object::File::parse(&*mmap).unwrap();
     let ctx = addr2line::Context::new(&object)?;
-    f(ctx);
-    Ok(())
+    Ok(f(ctx))
 }
 
 /// Produces the DWARF unit and entry offset for the DIE of `T`.
 fn dw_unit_and_die_of<'ctx, T: ?Sized, R>(
-    ctx: &'ctx Context<R>,
+    ctx: &'ctx addr2line::Context<R>,
 ) -> Result<(&'ctx gimli::Unit<R>, gimli::UnitOffset), crate::Error>
 where
     R: gimli::Reader<Offset = usize>,
@@ -137,9 +160,9 @@ where
 }
 
 pub fn reflect<'ctx, 'value, T: ?Sized, R>(
-    ctx: &'ctx Context<R>,
+    ctx: &'ctx addr2line::Context<R>,
     value: &'value T,
-) -> anyhow::Result<value::Value<'ctx, 'value, R>>
+) -> Result<value::Value<'ctx, 'value, R>, Error>
 where
     R: gimli::Reader<Offset = usize>,
 {
@@ -149,14 +172,14 @@ where
     Ok(unsafe { value::Value::with_type(r#type, value) })
 }
 
-pub fn reflect_type<'ctx, T: ?Sized, R>(ctx: &'ctx Context<R>) -> Result<Type<'ctx, R>, Error>
+pub fn reflect_type<'ctx, T: ?Sized, R>(ctx: &'ctx addr2line::Context<R>) -> Result<Type<'ctx, R>, Error>
 where
     R: gimli::Reader<Offset = usize>,
 {
     let (unit, offset) = dw_unit_and_die_of::<T, _>(ctx)?;
 
-    let mut tree = unit.entries_tree(Some(offset))?;
-    inspect_tree(&mut tree, ctx.dwarf(), unit);
+    //let mut tree = unit.entries_tree(Some(offset))?;
+    //inspect_tree(&mut tree, ctx.dwarf(), unit);
 
     let die = unit.entry(offset).unwrap();
     Type::from_die(ctx.dwarf(), unit, die)

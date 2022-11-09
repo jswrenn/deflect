@@ -84,7 +84,6 @@ where
         unit: &'dwarf gimli::Unit<R>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
         Ok(match entry.tag() {
             gimli::DW_TAG_base_type => {
                 let slice = crate::get_name(&entry, dwarf, unit).unwrap();

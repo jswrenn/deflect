@@ -1,11 +1,17 @@
+use deflect::Reflect;
+
 enum OptionLike {
     Some(std::num::NonZeroU8),
     None,
 }
 
-fn main() {
+fn main() -> Result<(), deflect::Error> {
+    let erased: &dyn Reflect = &OptionLike::Some(std::num::NonZeroU8::new(42).unwrap());
+
     deflect::with_context(|ctx| {
-        let _ = deflect::reflect_type::<OptionLike, _>(&ctx);
-    })
-    .unwrap();
+        let value = erased.reflect(&ctx);
+        println!("{:#?}", value);
+    })?;
+
+    Ok(())
 }

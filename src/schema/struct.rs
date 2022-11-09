@@ -35,7 +35,6 @@ where
         unit: &'dwarf gimli::Unit<R, usize>,
         entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        println!("{:?}", entry.tag().static_string());
         crate::check_tag(&entry, gimli::DW_TAG_structure_type)?;
         let name = crate::get_name(&entry, dwarf, unit)?;
         let size = crate::get_size(&entry)?;

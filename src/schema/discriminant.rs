@@ -1,23 +1,23 @@
 #[derive(Clone)]
 pub struct Discriminant<R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: super::DiscriminantType,
     align: u64,
-    location: gimli::AttributeValue<R>,
+    location: crate::gimli::AttributeValue<R>,
 }
 
 impl<R> Discriminant<R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) fn from_dw_tag_enumeration_type<'dwarf>(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R, usize>,
-        entry: &'dwarf gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R, usize>,
+        entry: &'dwarf crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        assert_eq!(entry.tag(), gimli::DW_TAG_enumeration_type);
+        assert_eq!(entry.tag(), crate::gimli::DW_TAG_enumeration_type);
 
         let r#type = crate::get_type(&entry)
             .map(|offset| unit.entry(offset).unwrap())
@@ -25,7 +25,7 @@ where
             .unwrap();
 
         let align = crate::get_align(&entry)?;
-        let location = gimli::AttributeValue::Udata(0);
+        let location = crate::gimli::AttributeValue::Udata(0);
 
         Ok(Self {
             r#type,
@@ -35,13 +35,13 @@ where
     }
 
     pub(crate) fn from_dw_tag_variant_part<'dwarf>(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R, usize>,
-        entry: &'dwarf gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R, usize>,
+        entry: &'dwarf crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        assert_eq!(entry.tag(), gimli::DW_TAG_variant_part);
+        assert_eq!(entry.tag(), crate::gimli::DW_TAG_variant_part);
 
-        let dw_tag_member = crate::get_attr_ref(&entry, gimli::DW_AT_discr)
+        let dw_tag_member = crate::get_attr_ref(&entry, crate::gimli::DW_AT_discr)
             .unwrap()
             .and_then(|offset| unit.entry(offset).ok())
             .unwrap();
@@ -53,7 +53,7 @@ where
         let align = crate::get_align(&entry).unwrap_or(1);
 
         let location = dw_tag_member
-            .attr_value(gimli::DW_AT_data_member_location)
+            .attr_value(crate::gimli::DW_AT_data_member_location)
             .unwrap()
             .unwrap();
 
@@ -72,7 +72,7 @@ where
         self.align as _
     }
 
-    pub fn location(&self) -> &gimli::AttributeValue<R> {
+    pub fn location(&self) -> &crate::gimli::AttributeValue<R> {
         &self.location
     }
 }
@@ -85,17 +85,17 @@ pub enum DiscriminantValue {
     U64(u64),
 }
 
-impl<R> From<gimli::AttributeValue<R>> for DiscriminantValue
+impl<R> From<crate::gimli::AttributeValue<R>> for DiscriminantValue
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
-    fn from(value: gimli::AttributeValue<R>) -> Self {
+    fn from(value: crate::gimli::AttributeValue<R>) -> Self {
         match value {
-            gimli::AttributeValue::Data1(value) => Self::U8(value),
-            gimli::AttributeValue::Data2(value) => Self::U16(value),
-            gimli::AttributeValue::Data4(value) => Self::U32(value),
-            gimli::AttributeValue::Data8(value) => Self::U64(value),
-            gimli::AttributeValue::Udata(value) => Self::U8(value as _),
+            crate::gimli::AttributeValue::Data1(value) => Self::U8(value),
+            crate::gimli::AttributeValue::Data2(value) => Self::U16(value),
+            crate::gimli::AttributeValue::Data4(value) => Self::U32(value),
+            crate::gimli::AttributeValue::Data8(value) => Self::U64(value),
+            crate::gimli::AttributeValue::Udata(value) => Self::U8(value as _),
             _ => todo!(),
         }
     }

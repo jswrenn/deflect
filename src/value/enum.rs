@@ -1,9 +1,9 @@
 use std::fmt;
 
 use crate::schema::DiscriminantValue;
-pub struct Enum<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
+pub struct Enum<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: crate::schema::Enum<'dwarf, R>,
     value: crate::Bytes<'value>,
@@ -11,7 +11,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Enum<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::", &self.name())?;
@@ -21,7 +21,7 @@ where
 
 impl<'dwarf, 'value, R> Enum<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
         r#type: crate::schema::Enum<'dwarf, R>,
@@ -41,7 +41,7 @@ where
         let discriminant = self.r#type.discriminant();
         let location = discriminant.location();
         let ptr = self.value.as_ptr() as u64;
-        let disr_addr = crate::eval_addr(&self.r#type.unit, location.clone(), ptr)
+        let disr_addr = crate::eval_addr(&self.r#type.unit(), location.clone(), ptr)
             .unwrap()
             .unwrap();
 

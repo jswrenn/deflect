@@ -15,7 +15,7 @@ pub use variant::Variant;
 #[non_exhaustive]
 pub enum Value<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     Bool(bool),
     Char(char),
@@ -42,7 +42,7 @@ where
 
 impl<'dwarf, 'value, R> Value<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     /// Safety: `value` absolutely must have the correct `type`.
     pub(crate) unsafe fn with_type(
@@ -50,6 +50,7 @@ where
         value: crate::Bytes<'value>,
     ) -> Self {
         match r#type {
+            crate::schema::Type::Bool => Self::Bool(unsafe { *(value as *const _ as *const _) }),
             crate::schema::Type::I8 => Self::I8(unsafe { *(value as *const _ as *const _) }),
             crate::schema::Type::I16 => Self::I16(unsafe { *(value as *const _ as *const _) }),
             crate::schema::Type::I32 => Self::I32(unsafe { *(value as *const _ as *const _) }),
@@ -75,7 +76,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Value<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

@@ -1,20 +1,20 @@
-use std::fmt;
+use std::{fmt, borrow::Cow};
 
 #[derive(Clone)]
-pub struct Variant<'dwarf, R: gimli::Reader<Offset = usize>>
+pub struct Variant<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
-    dwarf: &'dwarf gimli::Dwarf<R>,
-    unit: &'dwarf gimli::Unit<R, usize>,
-    entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    dwarf: &'dwarf crate::gimli::Dwarf<R>,
+    unit: &'dwarf crate::gimli::Unit<R, usize>,
+    entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     discriminant: super::Discriminant<R>,
     discriminant_value: Option<super::discriminant::DiscriminantValue>,
 }
 
 impl<'dwarf, 'value, R> fmt::Debug for Variant<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = format!("{} = {:?}", self.name(), &self.discriminant_value);
@@ -28,12 +28,12 @@ where
 
 impl<'dwarf, 'value, R> Variant<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) fn new(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R, usize>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R, usize>,
+        entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
         discriminant: super::Discriminant<R>,
         discriminant_value: Option<super::discriminant::DiscriminantValue>,
     ) -> Self {
@@ -52,6 +52,10 @@ where
             .to_string_lossy()
             .unwrap()
             .to_string()
+    }
+
+    pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::Error> {
+        crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
     pub fn discriminant(&self) -> &super::discriminant::Discriminant<R> {
@@ -83,7 +87,7 @@ where
 
     pub fn size(&self) -> usize {
         self.entry
-            .attr_value(gimli::DW_AT_byte_size)
+            .attr_value(crate::gimli::DW_AT_byte_size)
             .unwrap()
             .and_then(|r| r.udata_value())
             .unwrap()
@@ -93,7 +97,7 @@ where
 
     pub fn align(&self) -> usize {
         self.entry
-            .attr_value(gimli::DW_AT_alignment)
+            .attr_value(crate::gimli::DW_AT_alignment)
             .unwrap()
             .and_then(|r| r.udata_value())
             .unwrap()

@@ -1,8 +1,8 @@
 use std::{fmt, mem::MaybeUninit};
 
-pub struct Ref<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
+pub struct Ref<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: crate::schema::Ref<'dwarf, R>,
     value: crate::Bytes<'value>,
@@ -10,7 +10,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Ref<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "&")?;
@@ -20,7 +20,7 @@ where
 
 impl<'dwarf, 'value, R> Ref<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
         r#type: crate::schema::Ref<'dwarf, R>,

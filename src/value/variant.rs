@@ -1,8 +1,8 @@
 use std::fmt;
 
-pub struct Variant<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
+pub struct Variant<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: crate::schema::Variant<'dwarf, R>,
     value: crate::Bytes<'value>,
@@ -10,7 +10,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Variant<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ds = f.debug_struct(&self.name());
@@ -23,7 +23,7 @@ where
 
 impl<'dwarf, 'value, R> Variant<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
         r#type: crate::schema::Variant<'dwarf, R>,

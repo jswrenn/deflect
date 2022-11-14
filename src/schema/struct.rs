@@ -1,12 +1,12 @@
 use std::{borrow::Cow, fmt};
 
-pub struct Struct<'dwarf, R: gimli::Reader<Offset = usize>>
+pub struct Struct<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
-    dwarf: &'dwarf gimli::Dwarf<R>,
-    unit: &'dwarf gimli::Unit<R, usize>,
-    entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    dwarf: &'dwarf crate::gimli::Dwarf<R>,
+    unit: &'dwarf crate::gimli::Unit<R, usize>,
+    entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 
     name: R,
     size: u64,
@@ -15,7 +15,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Struct<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ds = f.debug_struct(&self.name().unwrap());
@@ -28,21 +28,31 @@ where
 
 impl<'dwarf, 'value, R> Struct<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) fn from_dw_tag_structure_type(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R, usize>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R, usize>,
+        entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        crate::check_tag(&entry, gimli::DW_TAG_structure_type)?;
+        crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
         let name = crate::get_name(&entry, dwarf, unit)?;
         let size = crate::get_size(&entry)?;
         let align = crate::get_align(&entry)?;
         Ok(Self { dwarf, unit, name, size, align, entry })
     }
 
-    pub fn name(&self) -> Result<Cow<str>, gimli::Error> {
+    /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
+    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+        self.dwarf
+    }
+
+    /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
+    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+        self.unit
+    }
+
+    pub fn name(&self) -> Result<Cow<str>, crate::gimli::Error> {
         self.name.to_string_lossy()
     }
 
@@ -55,7 +65,7 @@ where
         let mut children = root.children();
         while let Some(child) = children.next().unwrap() {
             match child.entry().tag() {
-                gimli::DW_TAG_member => f(super::field::Field::from_dw_tag_member(
+                crate::gimli::DW_TAG_member => f(super::field::Field::from_dw_tag_member(
                     self.dwarf,
                     self.unit,
                     child.entry().clone(),

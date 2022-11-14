@@ -1,8 +1,8 @@
 use std::fmt;
 
-pub struct Field<'dwarf, 'value, R: gimli::Reader<Offset = usize>>
+pub struct Field<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: crate::schema::Field<'dwarf, R>,
     value: crate::Bytes<'value>,
@@ -10,7 +10,7 @@ where
 
 impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct(self.name().as_str()).finish()
@@ -19,7 +19,7 @@ where
 
 impl<'dwarf, 'value, R> Field<'dwarf, 'value, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
         r#type: crate::schema::Field<'dwarf, R>,

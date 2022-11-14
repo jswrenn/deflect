@@ -12,9 +12,9 @@ enum OptionLike {
 }
 
 fn main() -> Result<(), deflect::Error> {
-    let x = OptionLike::Some(CLike::B);
+    let pandapandapanda = OptionLike::Some(CLike::B);
     let foo = async {
-        drop(x);
+        drop(pandapandapanda);
     };
 
     let erased: &dyn Reflect = &foo;

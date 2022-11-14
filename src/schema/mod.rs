@@ -16,7 +16,7 @@ pub use r#variant::Variant;
 #[non_exhaustive]
 pub enum Type<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     Bool,
     Char,
@@ -51,15 +51,15 @@ pub enum DiscriminantType {
 
 impl DiscriminantType {
     pub(crate) fn from_die<'dwarf, R>(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R>,
+        entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Self
     where
-        R: gimli::Reader<Offset = usize>,
+        R: crate::gimli::Reader<Offset = usize>,
     {
         match entry.tag() {
-            gimli::DW_TAG_base_type => {
+            crate::gimli::DW_TAG_base_type => {
                 let slice = crate::get_name(&entry, dwarf, unit).unwrap();
                 let slice = slice.to_slice().unwrap();
                 match slice.as_ref() {
@@ -77,15 +77,15 @@ impl DiscriminantType {
 
 impl<'dwarf, R> Type<'dwarf, R>
 where
-    R: gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) fn from_die(
-        dwarf: &'dwarf gimli::Dwarf<R>,
-        unit: &'dwarf gimli::Unit<R>,
-        entry: gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R>,
+        entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
         Ok(match entry.tag() {
-            gimli::DW_TAG_base_type => {
+            crate::gimli::DW_TAG_base_type => {
                 let slice = crate::get_name(&entry, dwarf, unit).unwrap();
 
                 let slice = slice.to_slice().unwrap();
@@ -102,17 +102,19 @@ where
                     b"u32" => Self::U32,
                     b"u64" => Self::U64,
                     b"u128" => Self::U128,
-                    _ => todo!(),
+                    
+                    b"bool" => Self::Bool,
+                    otherwise => todo!("{:?}", String::from_utf8(otherwise.to_owned())),
                 }
             }
-            gimli::DW_TAG_structure_type => {
+            crate::gimli::DW_TAG_structure_type => {
                 let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 let root = tree.root().unwrap();
                 let mut children = root.children();
                 let mut variants = None;
 
                 while let Some(child) = children.next().unwrap() {
-                    if child.entry().tag() == gimli::DW_TAG_variant_part {
+                    if child.entry().tag() == crate::gimli::DW_TAG_variant_part {
                         variants = Some(child.entry().clone());
                         break;
                     }
@@ -126,8 +128,8 @@ where
                     )?)
                 }
             }
-            gimli::DW_TAG_enumeration_type => Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap()),
-            gimli::DW_TAG_pointer_type => {
+            crate::gimli::DW_TAG_enumeration_type => Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap()),
+            crate::gimli::DW_TAG_pointer_type => {
                 //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 //crate::inspect_tree(&mut tree, dwarf, unit);
                 Self::Ref(Ref::from_dw_pointer_type(dwarf, unit, entry))

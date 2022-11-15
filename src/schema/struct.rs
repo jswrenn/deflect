@@ -55,24 +55,10 @@ where
         Ok(crate::get_align(self.entry())?)
     }
 
-    pub fn fields<F>(&self, mut f: F)
-    where
-        F: FnMut(super::field::Field<'dwarf, R>),
-    {
-        let mut tree = self.unit.entries_tree(Some(self.entry.offset())).unwrap();
-        let root = tree.root().unwrap();
-        let mut children = root.children();
-        while let Some(child) = children.next().unwrap() {
-            match child.entry().tag() {
-                crate::gimli::DW_TAG_member => f(super::field::Field::from_dw_tag_member(
-                    self.dwarf,
-                    self.unit,
-                    child.entry().clone(),
-                )
-                .unwrap()),
-                _ => continue,
-            }
-        }
+    /// The fields of this struct.
+    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
+        let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
+        Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
     }
 }
 
@@ -92,7 +78,9 @@ where
             Err(err) => panic!("{:?}", err),
         };
         let mut debug_struct = f.debug_struct(&struct_name);
-        self.fields(|field| {
+        let mut fields = self.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.next().unwrap() {
             let Some(field_name) = (match field.name() {
                 Ok(name) => name,
                 Err(err) => panic!("{:?}", err),
@@ -108,7 +96,7 @@ where
                 Err(err) => panic!("{:?}", err),
             };
             debug_struct.field(&field_name, &field_type);
-        });
+        }
         debug_struct.finish()
     }
 }

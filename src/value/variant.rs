@@ -23,8 +23,12 @@ where
     where
         F: FnMut(super::field::Field<'dwarf, 'value, R>),
     {
-        self.schema
-            .fields(|field_type| f(unsafe { super::Field::new(field_type, self.value) }));
+        let mut fields = self.schema.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.next().unwrap() {
+            f(unsafe { super::Field::new(field, self.value) })
+
+        }
     }
 }
 
@@ -48,7 +52,7 @@ where
             Ok(name) => name,
             Err(err) => panic!("{:?}", err),
         }) else {
-            panic!("field does not have a name");
+            panic!("variant does not have a name");
         };
         let struct_name = match struct_name.to_string_lossy() {
             Ok(name) => name,

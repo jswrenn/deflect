@@ -43,6 +43,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        println!("field");
         let Some(field_name) = (match self.name() {
             Ok(name) => name,
             Err(err) => panic!("{:?}", err),

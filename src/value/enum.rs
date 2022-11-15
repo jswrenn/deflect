@@ -14,8 +14,11 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}::", &self.name())?;
-        self.variant().fmt(f)
+        f.write_str(&self.name())?;
+        f.write_str("::")?;
+        self.variant()
+            .expect("Could not reflect into variant.")
+            .fmt(f)
     }
 }
 
@@ -34,24 +37,25 @@ where
         self.r#type.name().unwrap().to_string()
     }
 
-    pub fn variant(&self) -> super::Variant<'dwarf, 'value, R> {
+    pub fn variant(&self) -> Result<super::Variant<'dwarf, 'value, R>, crate::Error> {
         let mut default = None;
         let mut matched = None;
 
-        let discriminant = self.r#type.discriminant();
-        let location = discriminant.location();
-        let ptr = self.value.as_ptr() as u64;
-        let disr_addr = crate::eval_addr(&self.r#type.unit(), location.clone(), ptr)
-            .unwrap()
-            .unwrap();
+        let discr = self.r#type.discriminant();
+        let discr_loc = discr.location().clone();
+        let enum_addr = self.value.as_ptr() as *const () as u64;
+        let discr_addr = discr_loc.address(enum_addr).unwrap();
 
-        self.r#type.variants(|variant| {
+        let mut variants = self.r#type.variants()?;
+        let mut variants = variants.iter()?;
+
+        while let Some(variant) = variants.next()? {
             if let Some(discriminant) = variant.discriminant_value() {
                 let matches = match discriminant {
-                    DiscriminantValue::U8(v) => (unsafe { *(disr_addr as *const u8) } == v),
-                    DiscriminantValue::U16(v) => (unsafe { *(disr_addr as *const u16) } == v),
-                    DiscriminantValue::U32(v) => (unsafe { *(disr_addr as *const u32) } == v),
-                    DiscriminantValue::U64(v) => (unsafe { *(disr_addr as *const u64) } == v),
+                    DiscriminantValue::U8(v) => (unsafe { *(discr_addr as *const u8) } == v),
+                    DiscriminantValue::U16(v) => (unsafe { *(discr_addr as *const u16) } == v),
+                    DiscriminantValue::U32(v) => (unsafe { *(discr_addr as *const u32) } == v),
+                    DiscriminantValue::U64(v) => (unsafe { *(discr_addr as *const u64) } == v),
                 };
                 if matches {
                     matched = Some(variant.clone());
@@ -59,15 +63,8 @@ where
             } else {
                 default = Some(variant.clone());
             }
-        });
-        unsafe { super::Variant::new(matched.or(default).unwrap(), self.value) }
-    }
+        }
 
-    pub fn size(&self) -> usize {
-        self.r#type.size()
-    }
-
-    pub fn align(&self) -> usize {
-        self.r#type.align()
+        Ok(unsafe { super::Variant::new(matched.or(default).unwrap(), self.value) })
     }
 }

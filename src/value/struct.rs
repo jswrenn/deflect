@@ -23,8 +23,11 @@ where
     where
         F: FnMut(super::Field<'dwarf, 'value, R>),
     {
-        self.schema
-            .fields(|field_type| f(unsafe { super::Field::new(field_type, self.value) }));
+        let mut fields = self.schema.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.next().unwrap() {
+            f(unsafe { super::Field::new(field, self.value) })
+        }
     }
 }
 

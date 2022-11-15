@@ -35,17 +35,17 @@ where
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
-    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+    pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
     /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
-    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+    pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
-    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+    pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
 
@@ -66,7 +66,7 @@ where
 
     /// The offset at which this field occurs.
     pub fn offset(&'dwarf self) -> Result<Option<Offset<'dwarf, R>>, crate::Error> {
-        Ok(Offset::from_die(self.dwarf(), self.unit(), self.entry())?)
+        Ok(Offset::from_die(self.unit(), self.entry())?)
     }
 
     /// The type of the field.

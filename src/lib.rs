@@ -1,5 +1,10 @@
 #![feature(once_cell)]
-#![feature(provide_any, error_generic_member_access, result_flattening)]
+#![feature(
+    provide_any,
+    error_generic_member_access,
+    result_flattening,
+    pointer_byte_offsets
+)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_array_assume_init)]
 
@@ -14,6 +19,7 @@ use std::{
     ffi::c_void,
     marker::PhantomData,
     mem::{self, MaybeUninit},
+    ops,
     ptr::slice_from_raw_parts,
     rc::Rc,
     sync::LazyLock,
@@ -31,20 +37,52 @@ type Bytes<'value> = &'value [Byte];
 type Addr2LineReader = EndianReader<RunTimeEndian, Rc<[u8]>>;
 pub type Context = addr2line::Context<Addr2LineReader>;
 
-thread_local! {
-    pub static CONTEXT: Context = {
-        static MMAP: LazyLock<memmap2::Mmap> = LazyLock::new(|| {
-            let file = current_binary().unwrap();
-            let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
-            mmap
-        });
+/// A source of debug info that can be trusted to correspond to the current executable.
+pub unsafe trait DebugInfo {
+    type Reader: gimli::Reader<Offset = usize>;
 
-        static OBJECT: LazyLock<object::File<'static, &'static [u8]>> = LazyLock::new(|| {
-            object::File::parse(MMAP.as_ref()).unwrap()
-        });
+    fn context(&self) -> &addr2line::Context<Self::Reader>;
+}
 
-        addr2line::Context::new(&*OBJECT).unwrap()
-    };
+pub struct CurrentExeContext {
+    context: Rc<addr2line::Context<Addr2LineReader>>,
+}
+
+pub fn current_exe_debuginfo() -> CurrentExeContext {
+    impl ops::Deref for CurrentExeContext {
+        type Target = addr2line::Context<Addr2LineReader>;
+
+        fn deref(&self) -> &Self::Target {
+            self.context.as_ref()
+        }
+    }
+
+    unsafe impl DebugInfo for CurrentExeContext {
+        type Reader = Addr2LineReader;
+
+        fn context(&self) -> &addr2line::Context<Self::Reader> {
+            &self.context
+        }
+    }
+
+    thread_local! {
+        pub static CONTEXT: Rc<Context> = {
+            static MMAP: LazyLock<memmap2::Mmap> = LazyLock::new(|| {
+                let file = current_binary().unwrap();
+                let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
+                mmap
+            });
+
+            static OBJECT: LazyLock<object::File<'static, &'static [u8]>> = LazyLock::new(|| {
+                object::File::parse(MMAP.as_ref()).unwrap()
+            });
+            Rc::new(addr2line::Context::new(&*OBJECT).unwrap())
+        };
+    }
+
+    CurrentExeContext {
+        context: CONTEXT.with(|ctx| ctx.clone()),
+    }
 }
 
 pub trait Reflect {
@@ -58,28 +96,24 @@ pub trait Reflect {
         });
         symbol_addr
     }
-
-    /*fn reflect<'s, 'ctx>(&'s self, ctx: &'ctx Context) -> Result<Value<'ctx, 's, Addr2LineReader>, Error> {
-        reflect(ctx, self)
-    }*/
 }
 
 impl<T> Reflect for T {}
 
 impl dyn Reflect {
-    pub fn reflect<'s, 'ctx>(
-        &'s self,
-        ctx: &'ctx Context,
-    ) -> Result<Value<'ctx, 's, Addr2LineReader>, Error> {
-        let (unit, offset) = self.dw_unit_and_die_of(ctx)?;
-        let mut tree = unit.entries_tree(Some(offset))?;
-        inspect_tree(&mut tree, ctx.dwarf(), unit);
-        let die = unit.entry(offset).unwrap();
-        let r#type = Type::from_die(ctx.dwarf(), unit, die)?;
+    /// Produces a reflected `Value` of `&self`.
+    pub fn reflect<'value, 'dbginfo, D: DebugInfo>(
+        &'value self,
+        debug_info: &'dbginfo D,
+    ) -> Result<Value<'dbginfo, 'value, D::Reader>, Error>
+    {
+        let context = debug_info.context();
+        let (unit, offset) = self.dw_unit_and_die_of(context)?;
+        let entry = unit.entry(offset)?;
+        let r#type = Type::from_die(context.dwarf(), unit, entry)?;
         let value =
             slice_from_raw_parts(self as *const Self as *const Byte, mem::size_of_val(self));
-        let value = unsafe { &*value };
-        Ok(unsafe { value::Value::with_type(r#type, value) })
+        Ok(unsafe { value::Value::with_type(r#type, &*value) })
     }
 
     /// Produces the DWARF unit and entry offset for the DIE of `T`.
@@ -158,7 +192,7 @@ pub enum ErrorKind {
     },
     #[error("tag had value of unexpected type")]
     ValueMismatch,
-    #[error("die did not have the tag {attr}")]
+    #[error("die did not have the tag {:?}", .attr.static_string())]
     MissingAttr { attr: crate::gimli::DwAt },
     #[error("die did not have the child {tag}")]
     MissingChild { tag: crate::gimli::DwTag },
@@ -172,17 +206,6 @@ impl From<crate::gimli::Error> for ErrorKind {
     fn from(value: crate::gimli::Error) -> Self {
         Self::Gimli(value)
     }
-}
-
-pub fn with_context<F, R>(f: F) -> Result<R, Error>
-where
-    F: FnOnce(Context) -> R,
-{
-    let file = current_binary().unwrap();
-    let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
-    let object = object::File::parse(&*mmap).unwrap();
-    let ctx = addr2line::Context::new(&object)?;
-    Ok(f(ctx))
 }
 
 /// Produces the DWARF unit and entry offset for the DIE of `T`.

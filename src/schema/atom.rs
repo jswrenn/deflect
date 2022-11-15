@@ -1,6 +1,7 @@
 use super::Name;
 use std::fmt;
 
+/// A primitive, non-compound (i.e., "atomic") type, like `u8` or `bool`.
 pub struct Atom<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -10,11 +11,11 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-/// A primitive, non-compound (i.e., "atomic") type, like `u8` or `bool`.
 impl<'dwarf, R> Atom<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
+    /// Construct an `Atom` from a [`DW_TAG_base_type`][crate::gimli::DW_TAG_base_type].
     pub(crate) fn from_dw_tag_base_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -25,17 +26,17 @@ where
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
-    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+    pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
     /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
-    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+    pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
-    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+    pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
 
@@ -54,12 +55,13 @@ where
         Ok(crate::get_align(self.entry())?)
     }
 
+    /// Interpret this `Atom` as a primitive Rust type.
     pub fn to_rust(&self) -> Option<RustAtom> {
         let Some(name) = (match self.name() {
             Ok(name) => name,
             Err(err) => panic!("{:?}", err),
         }) else {
-            panic!("type does not have a name");
+            return None;
         };
         let name = match name.to_slice() {
             Ok(name) => name,
@@ -99,8 +101,9 @@ where
     }
 }
 
+/// A primitive Rust type.
 pub enum RustAtom {
-    Bool = 1,
+    Bool,
     Char,
     F32,
     F64,

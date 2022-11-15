@@ -12,17 +12,17 @@ enum OptionLike {
 }
 
 fn main() -> Result<(), deflect::Error> {
+    let x = 42;
     let pandapandapanda = OptionLike::Some(CLike::B);
-    let foo = async {
+    let foo = async move {
+        drop(x);
         drop(pandapandapanda);
     };
 
     let erased: &dyn Reflect = &foo;
-
-    deflect::with_context(|ctx| {
-        let value = erased.reflect(&ctx);
-        println!("{:#?}", value);
-    })?;
+    let context = deflect::current_exe_debuginfo();
+    let value = erased.reflect(&context);
+    println!("{:#?}", value);
 
     Ok(())
 }

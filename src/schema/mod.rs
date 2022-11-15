@@ -2,12 +2,14 @@ mod atom;
 mod discriminant;
 mod r#enum;
 mod field;
+mod fields;
 mod function;
 mod name;
 mod offset;
 mod r#ref;
 mod r#struct;
 mod variant;
+mod variants;
 
 pub use atom::{Atom, RustAtom};
 pub use discriminant::{Discriminant, DiscriminantValue};
@@ -16,10 +18,13 @@ pub use name::Name;
 pub use offset::Offset;
 pub use r#enum::Enum;
 pub use r#field::Field;
+pub use fields::{Fields, FieldsIter};
 pub use r#ref::Ref;
 pub use r#struct::Struct;
 pub use r#variant::Variant;
+pub use variants::{Variants, VariantsIter};
 
+/// A language type.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Type<'dwarf, R>
@@ -33,7 +38,7 @@ where
     Function(function::Function<'dwarf, R>),
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum DiscriminantType {
     U8,
     U16,
@@ -107,30 +112,27 @@ where
                 Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap())
             }
             crate::gimli::DW_TAG_pointer_type => {
-                //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                //crate::inspect_tree(&mut tree, dwarf, unit);
                 Self::Ref(Ref::from_dw_pointer_type(dwarf, unit, entry))
             }
             crate::gimli::DW_TAG_subroutine_type => {
-                //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                //crate::inspect_tree(&mut tree, dwarf, unit);
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
             }
             otherwise @ _ => {
                 let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                crate::inspect_tree(&mut tree, dwarf, unit);
+                let _ = crate::inspect_tree(&mut tree, dwarf, unit);
                 panic!("{}", otherwise.to_string())
             }
         })
     }
 
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
         match self {
-            Type::Atom(v) => v.size().unwrap().unwrap().try_into().unwrap(),
-            Type::Struct(v) => v.size().unwrap().unwrap().try_into().unwrap(),
+            Type::Atom(v) => v.size(),
+            Type::Struct(v) => v.size(),
             Type::Enum(v) => v.size(),
-            Type::Ref(_) => 8,
-            _ => 0,
+            Type::Ref(v) => v.size(),
+            Type::Function(_) => Ok(Some(0)),
+            _ => todo!(),
         }
     }
 }

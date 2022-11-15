@@ -26,17 +26,17 @@ where
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
-    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+    pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
     /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
-    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+    pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
-    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+    pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
 

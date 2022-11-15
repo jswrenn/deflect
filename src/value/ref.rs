@@ -29,7 +29,7 @@ where
         let r#type = r#type.ok_or(crate::ErrorKind::MissingAttr {
             attr: crate::gimli::DW_AT_type,
         })?;
-        let size = r#type.size();
+        let size = r#type.size()?.unwrap_or(0).try_into().unwrap();
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
         Ok(unsafe { super::Value::with_type(r#type, value) })

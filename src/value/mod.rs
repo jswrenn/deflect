@@ -3,12 +3,14 @@ use std::fmt;
 mod atom;
 mod r#enum;
 mod field;
+mod fields;
 mod r#ref;
 mod r#struct;
 mod variant;
 
 pub use atom::{Atom, RustAtom};
 pub use field::Field;
+pub use fields::{Fields, FieldsIter};
 pub use r#enum::Enum;
 pub use r#ref::Ref;
 pub use r#struct::Struct;

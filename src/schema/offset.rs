@@ -1,4 +1,5 @@
 /// The offset of a field or data member.
+#[derive(Copy)]
 pub struct Offset<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -7,6 +8,7 @@ where
     inner: OffsetInner<R>,
 }
 
+#[derive(Copy)]
 enum OffsetInner<R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -19,11 +21,17 @@ impl<'dwarf, R> Offset<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
+    pub(crate) fn zero(unit: &'dwarf crate::gimli::Unit<R, usize>) -> Self {
+        Self {
+            unit,
+            inner: OffsetInner::Udata(0),
+        }
+    }
+
     /// Construct a new `Offset` from a given `entry`'s `DW_AT_data_member_location` attribute.
-    pub(crate) fn from_die(
-        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+    pub(crate) fn from_die<'entry>(
         unit: &'dwarf crate::gimli::Unit<R, usize>,
-        entry: &'dwarf crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Option<Self>, crate::Error> {
         let maybe_location = entry.attr_value(crate::gimli::DW_AT_data_member_location)?;
         Ok(if let Some(location) = maybe_location {
@@ -60,6 +68,30 @@ where
                     todo!()
                 }
             }
+        }
+    }
+}
+
+impl<'dwarf, R> Clone for Offset<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            unit: self.unit,
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<R> Clone for OffsetInner<R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn clone(&self) -> Self {
+        match self {
+            Self::Udata(offset) => Self::Udata(*offset),
+            Self::Expression(expr) => Self::Expression(expr.clone()),
         }
     }
 }

@@ -1,23 +1,22 @@
-#[derive(Clone)]
-pub struct Discriminant<R>
+pub struct Discriminant<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     r#type: super::DiscriminantType,
     align: u64,
-    location: crate::gimli::AttributeValue<R>,
+    location: super::Offset<'dwarf, R>,
 }
 
-impl<R> Discriminant<R>
+impl<'dwarf, R> Discriminant<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) fn from_dw_tag_enumeration_type<'dwarf>(
+    pub(crate) fn from_dw_tag_enumeration_type<'entry>(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
-        entry: &'dwarf crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+        entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        assert_eq!(entry.tag(), crate::gimli::DW_TAG_enumeration_type);
+        crate::check_tag(&entry, crate::gimli::DW_TAG_enumeration_type)?;
 
         let r#type = crate::get_type(&entry)
             .map(|offset| unit.entry(offset).unwrap())
@@ -25,7 +24,7 @@ where
             .unwrap();
 
         let align = crate::get_align(&entry)?.unwrap();
-        let location = crate::gimli::AttributeValue::Udata(0);
+        let location = super::Offset::zero(unit);
 
         Ok(Self {
             r#type,
@@ -34,11 +33,14 @@ where
         })
     }
 
-    pub(crate) fn from_dw_tag_variant_part<'dwarf>(
+    pub(crate) fn from_dw_tag_variant_part<'entry>(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
-        entry: &'dwarf crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+        entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Result<Self, crate::Error>
+    where
+        'dwarf: 'entry,
+    {
         assert_eq!(entry.tag(), crate::gimli::DW_TAG_variant_part);
 
         let dw_tag_member = crate::get_attr_ref(&entry, crate::gimli::DW_AT_discr)
@@ -53,10 +55,11 @@ where
 
         let align = crate::get_align(&entry).unwrap().unwrap_or(1);
 
-        let location = dw_tag_member
-            .attr_value(crate::gimli::DW_AT_data_member_location)
-            .unwrap()
-            .unwrap();
+        let location = super::Offset::from_die(unit, &dw_tag_member)?.ok_or(
+            crate::ErrorKind::MissingAttr {
+                attr: crate::gimli::DW_AT_data_member_location,
+            },
+        )?;
 
         Ok(Self {
             r#type,
@@ -73,7 +76,7 @@ where
         self.align as _
     }
 
-    pub fn location(&self) -> &crate::gimli::AttributeValue<R> {
+    pub fn location(&self) -> &super::Offset<'dwarf, R> {
         &self.location
     }
 }

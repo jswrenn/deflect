@@ -156,11 +156,10 @@ fn main() -> Result<(), deflect::Error> {
     //let _ = poll_once(task.as_mut());
 
     let erased: &dyn Reflect = &poll(task);
+    let context = deflect::current_exe_debuginfo();
+    let value = erased.reflect(&context);
 
-    deflect::with_context(|ctx| {
-        let value = erased.reflect(&ctx);
-        println!("{:#?}", value);
-    })?;
+    println!("{:#?}", value);
 
     Ok(())
 }

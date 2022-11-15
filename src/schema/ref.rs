@@ -65,7 +65,12 @@ where
         )?)
     }
 
-    /// The type of the field.
+    /// The size of this field, in bytes.
+    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+        Ok(crate::get_size(self.entry())?)
+    }
+
+    /// The type of the referent.
     pub fn r#type(&'dwarf self) -> Result<Option<super::Type<'dwarf, R>>, crate::Error> {
         let maybe_type = crate::get_type_opt(self.unit(), self.entry())?;
         Ok(if let Some(r#type) = maybe_type {

@@ -1,6 +1,7 @@
 use super::Name;
 use std::{borrow::Cow, fmt};
 
+/// A variant of an [enum][super::Enum].
 #[derive(Clone)]
 pub struct Variant<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -9,7 +10,6 @@ where
     dwarf: &'dwarf crate::gimli::Dwarf<R>,
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    discriminant: super::Discriminant<R>,
     discriminant_value: Option<super::discriminant::DiscriminantValue>,
 }
 
@@ -24,12 +24,14 @@ where
             &self.discriminant_value
         );
         let mut ds = f.debug_struct(name.as_str());
-        self.fields(|field| {
+        let mut fields = self.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.next().unwrap() {
             ds.field(
                 &field.name().unwrap().unwrap().to_string().unwrap(),
                 &field.r#type(),
             );
-        });
+        }
         ds.finish()
     }
 }
@@ -42,30 +44,28 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-        discriminant: super::Discriminant<R>,
         discriminant_value: Option<super::discriminant::DiscriminantValue>,
     ) -> Self {
         Self {
             dwarf,
             unit,
             entry,
-            discriminant,
             discriminant_value,
         }
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
-    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+    pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
     /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
-    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+    pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
-    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+    pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
 
@@ -88,30 +88,13 @@ where
         crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
-    pub fn discriminant(&self) -> &super::discriminant::Discriminant<R> {
-        &self.discriminant
-    }
-
     pub fn discriminant_value(&self) -> Option<super::discriminant::DiscriminantValue> {
         self.discriminant_value
     }
 
-    pub fn fields<F>(&self, mut f: F)
-    where
-        F: FnMut(super::field::Field<'dwarf, R>),
-    {
-        if self.entry.has_children() {
-            let mut tree = self.unit.entries_tree(Some(self.entry.offset())).unwrap();
-            let root = tree.root().unwrap();
-            let mut children = root.children();
-            while let Some(child) = children.next().unwrap() {
-                f(super::field::Field::from_dw_tag_member(
-                    self.dwarf,
-                    self.unit,
-                    child.entry().clone(),
-                )
-                .unwrap());
-            }
-        }
+    /// The fields of this struct.
+    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
+        let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
+        Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
     }
 }

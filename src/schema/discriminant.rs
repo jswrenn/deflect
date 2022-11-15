@@ -101,3 +101,20 @@ where
         }
     }
 }
+
+impl<'a, 'dwarf, R> From<(&'a super::Atom<'dwarf, R>, u64)> for DiscriminantValue
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn from((r#type, value): (&'a super::Atom<'dwarf, R>, u64)) -> Self {
+        let name = r#type.name().unwrap().unwrap();
+        let name = name.to_slice().unwrap();
+        match name.as_ref() {
+            b"u8" => Self::U8(value as _),
+            b"u16" => Self::U16(value as _),
+            b"u32" => Self::U32(value as _),
+            b"u64" => Self::U64(value as _),
+            otherwise => todo!("{:?}", String::from_utf8(otherwise.to_owned())),
+        }
+    }
+}

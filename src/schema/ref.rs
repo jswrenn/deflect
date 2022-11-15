@@ -58,7 +58,11 @@ where
 
     /// The name of this primitive type.
     pub fn name(&self) -> Result<Option<super::Name<R>>, crate::Error> {
-        Ok(super::Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+        Ok(super::Name::from_die(
+            self.dwarf(),
+            self.unit(),
+            self.entry(),
+        )?)
     }
 
     /// The type of the field.

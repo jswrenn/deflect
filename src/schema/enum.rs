@@ -101,35 +101,16 @@ where
         let root = tree.root().unwrap();
         match self.entry.tag() {
             crate::gimli::DW_TAG_enumeration_type => {
-                let discriminant_type = crate::get_type(&self.entry).unwrap();
-                let discriminant_type = self.unit.entry(discriminant_type).unwrap();
-                let discriminant_type =
-                    super::Type::from_die(self.dwarf, self.unit, discriminant_type).unwrap();
-
                 let mut children = root.children();
                 while let Some(child) = children.next().unwrap() {
                     let child = child.entry();
                     assert_eq!(child.tag(), crate::gimli::DW_TAG_enumerator);
 
-                    let crate::gimli::AttributeValue::Udata(value) = child.attr_value(crate::gimli::DW_AT_const_value).unwrap().unwrap() else {
-                        unimplemented!()
-                    };
-
-                    let _discriminant = Some(match discriminant_type {
-                        super::Type::Atom(atom) => {
-
-                        },
-                        super::Type::U8 => super::DiscriminantValue::U8(value as _),
-                        super::Type::U16 => super::DiscriminantValue::U16(value as _),
-                        super::Type::U32 => super::DiscriminantValue::U32(value as _),
-                        super::Type::U64 => super::DiscriminantValue::U64(value as _),
-                        other => panic!("{:?}", other),
-                    });
-
                     let discriminant_value: Option<super::DiscriminantValue> = child
                         .attr_value(crate::gimli::DW_AT_const_value)
                         .unwrap()
                         .map(|value| value.into());
+
                     f(super::variant::Variant::new(
                         self.dwarf,
                         self.unit,

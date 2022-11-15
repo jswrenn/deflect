@@ -1,5 +1,7 @@
 #![feature(once_cell)]
 #![feature(provide_any, error_generic_member_access, result_flattening)]
+#![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_array_assume_init)]
 
 use addr2line::gimli;
 

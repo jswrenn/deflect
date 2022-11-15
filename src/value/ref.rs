@@ -1,4 +1,8 @@
-use std::{fmt::{self, Write}, ops, mem::MaybeUninit};
+use std::{
+    fmt::{self, Write},
+    mem::MaybeUninit,
+    ops,
+};
 
 pub struct Ref<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -22,7 +26,9 @@ where
     pub fn value(&'dwarf self) -> Result<super::Value<'dwarf, 'value, R>, crate::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
-        let r#type = r#type.ok_or(crate::ErrorKind::MissingAttr { attr: crate::gimli::DW_AT_type })?;
+        let r#type = r#type.ok_or(crate::ErrorKind::MissingAttr {
+            attr: crate::gimli::DW_AT_type,
+        })?;
         let size = r#type.size();
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };

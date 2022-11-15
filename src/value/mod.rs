@@ -1,5 +1,6 @@
 use std::fmt;
 
+mod atom;
 mod r#enum;
 mod field;
 mod r#ref;
@@ -38,6 +39,7 @@ where
     Struct(r#struct::Struct<'dwarf, 'value, R>),
     Enum(r#enum::Enum<'dwarf, 'value, R>),
     Ref(r#ref::Ref<'dwarf, 'value, R>),
+    Function(crate::schema::Function<'dwarf, R>),
 }
 
 impl<'dwarf, 'value, R> Value<'dwarf, 'value, R>
@@ -69,6 +71,7 @@ where
             crate::schema::Type::Struct(r#type) => Self::Struct(Struct::new(r#type, value)),
             crate::schema::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
             crate::schema::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
+            crate::schema::Type::Function(r#type) => Self::Function(r#type),
             _ => todo!(),
         }
     }
@@ -101,6 +104,7 @@ where
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Ref(v) => v.fmt(f),
+            Self::Function(s) => s.fmt(f),
         }
     }
 }

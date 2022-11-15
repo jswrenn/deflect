@@ -114,35 +114,26 @@ async fn await1_level1() -> u8 {
 }
 
 async fn await2_level1() -> u8 {
-    base().await 
-        + base().await
+    base().await + base().await
 }
 
 async fn await3_level1() -> u8 {
-    base().await 
-        + base().await 
-            + base().await
+    base().await + base().await + base().await
 }
 
 async fn await3_level2() -> u8 {
     let foo = Box::pin(await3_level1());
     let bar = await3_level1();
     let baz = await3_level1();
-    foo.await 
-        + bar.await 
-            + baz.await
+    foo.await + bar.await + baz.await
 }
 
 async fn await3_level3() -> u8 {
-    await3_level2().await 
-        + await3_level2().await 
-            + await3_level2().await
+    await3_level2().await + await3_level2().await + await3_level2().await
 }
 
 async fn await3_level4() -> u8 {
-    await3_level3().await 
-        + await3_level3().await 
-            + await3_level3().await
+    await3_level3().await + await3_level3().await + await3_level3().await
 }
 
 async fn await3_level5() -> u8 {
@@ -156,11 +147,15 @@ async fn await3_level5() -> u8 {
     z
 }
 
-fn main() -> Result<(), deflect::Error> {
-    let mut task = Box::pin(await3_level5());
-    let _ = poll_once(task.as_mut());
+fn poll<F: Future>(f: F) -> impl Reflect {
+    <F as Future>::poll
+}
 
-    let erased: &dyn Reflect = &*task;
+fn main() -> Result<(), deflect::Error> {
+    let mut task = await3_level5();
+    //let _ = poll_once(task.as_mut());
+
+    let erased: &dyn Reflect = &poll(task);
 
     deflect::with_context(|ctx| {
         let value = erased.reflect(&ctx);

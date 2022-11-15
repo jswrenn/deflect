@@ -60,10 +60,14 @@ where
             while let Some(child) = children.next()? {
                 let entry = child.entry();
                 if child.entry().tag() == crate::gimli::DW_TAG_variant_part {
-                    break 'variant super::Discriminant::from_dw_tag_variant_part(dwarf, unit, entry)?;
+                    break 'variant super::Discriminant::from_dw_tag_variant_part(
+                        dwarf, unit, entry,
+                    )?;
                 }
             }
-            return Err(crate::ErrorKind::MissingChild { tag: crate::gimli::DW_TAG_variant_part })?;
+            return Err(crate::ErrorKind::MissingChild {
+                tag: crate::gimli::DW_TAG_variant_part,
+            })?;
         };
 
         Ok(Self {
@@ -112,11 +116,14 @@ where
                     };
 
                     let _discriminant = Some(match discriminant_type {
+                        super::Type::Atom(atom) => {
+
+                        },
                         super::Type::U8 => super::DiscriminantValue::U8(value as _),
                         super::Type::U16 => super::DiscriminantValue::U16(value as _),
                         super::Type::U32 => super::DiscriminantValue::U32(value as _),
                         super::Type::U64 => super::DiscriminantValue::U64(value as _),
-                        _ => panic!(),
+                        other => panic!("{:?}", other),
                     });
 
                     let discriminant_value: Option<super::DiscriminantValue> = child

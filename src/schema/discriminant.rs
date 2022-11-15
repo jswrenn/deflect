@@ -24,7 +24,7 @@ where
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .unwrap();
 
-        let align = crate::get_align(&entry)?;
+        let align = crate::get_align(&entry)?.unwrap();
         let location = crate::gimli::AttributeValue::Udata(0);
 
         Ok(Self {
@@ -46,11 +46,12 @@ where
             .and_then(|offset| unit.entry(offset).ok())
             .unwrap();
 
-        let r#type = unit.entry(crate::get_type(&dw_tag_member).unwrap())
+        let r#type = unit
+            .entry(crate::get_type(&dw_tag_member).unwrap())
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .expect("no entry");
 
-        let align = crate::get_align(&entry).unwrap_or(1);
+        let align = crate::get_align(&entry).unwrap().unwrap_or(1);
 
         let location = dw_tag_member
             .attr_value(crate::gimli::DW_AT_data_member_location)

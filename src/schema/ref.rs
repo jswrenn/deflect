@@ -14,8 +14,17 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "&")?;
-        self.r#type().fmt(f)
+        let Some(name) = (match self.name() {
+            Ok(name) => name,
+            Err(err) => panic!("{:?}", err),
+        }) else {
+            panic!("type does not have a name");
+        };
+        let name = match name.to_string_lossy() {
+            Ok(name) => name,
+            Err(err) => panic!("{:?}", err),
+        };
+        f.write_str(&name)
     }
 }
 
@@ -42,9 +51,23 @@ where
         self.unit
     }
 
-    pub fn r#type(&self) -> super::Type<'dwarf, R> {
-        let offset = crate::get_type(&self.entry).unwrap();
-        let entry = self.unit.entry(offset).unwrap();
-        super::Type::from_die(self.dwarf, self.unit, entry).unwrap()
+    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
+    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+        &self.entry
+    }
+
+    /// The name of this primitive type.
+    pub fn name(&self) -> Result<Option<super::Name<R>>, crate::Error> {
+        Ok(super::Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+    }
+
+    /// The type of the field.
+    pub fn r#type(&'dwarf self) -> Result<Option<super::Type<'dwarf, R>>, crate::Error> {
+        let maybe_type = crate::get_type_opt(self.unit(), self.entry())?;
+        Ok(if let Some(r#type) = maybe_type {
+            Some(super::Type::from_die(self.dwarf, self.unit, r#type)?)
+        } else {
+            None
+        })
     }
 }

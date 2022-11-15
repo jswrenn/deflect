@@ -1,16 +1,25 @@
+mod atom;
 mod discriminant;
 mod r#enum;
 mod field;
+mod name;
+mod offset;
 mod r#ref;
+mod function;
 mod r#struct;
 mod variant;
 
 pub use discriminant::{Discriminant, DiscriminantValue};
+pub use name::Name;
+pub use offset::Offset;
 pub use r#enum::Enum;
 pub use r#field::Field;
 pub use r#ref::Ref;
+pub use function::Function;
 pub use r#struct::Struct;
 pub use r#variant::Variant;
+
+use self::atom::Atom;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -36,9 +45,11 @@ where
     U128,
     Usize,
     Unit,
+    Atom(Atom<'dwarf, R>),
     Struct(r#struct::Struct<'dwarf, R>),
     Enum(r#enum::Enum<'dwarf, R>),
     Ref(r#ref::Ref<'dwarf, R>),
+    Function(function::Function<'dwarf, R>),
 }
 
 #[derive(Clone)]
@@ -86,26 +97,25 @@ where
     ) -> Result<Self, crate::Error> {
         Ok(match entry.tag() {
             crate::gimli::DW_TAG_base_type => {
-                let slice = crate::get_name(&entry, dwarf, unit).unwrap();
+                Self::Atom(Atom::from_dw_tag_base_type(dwarf, unit, entry)?)
+                // let slice = crate::get_name(&entry, dwarf, unit)?;
+                // let slice = slice.to_slice()?;
+                // match slice.as_ref() {
+                //     b"i8" => Self::I8,
+                //     b"i16" => Self::I16,
+                //     b"i32" => Self::I32,
+                //     b"i64" => Self::I64,
+                //     b"i128" => Self::I128,
 
-                let slice = slice.to_slice().unwrap();
+                //     b"u8" => Self::U8,
+                //     b"u16" => Self::U16,
+                //     b"u32" => Self::U32,
+                //     b"u64" => Self::U64,
+                //     b"u128" => Self::U128,
 
-                match slice.as_ref() {
-                    b"i8" => Self::I8,
-                    b"i16" => Self::I16,
-                    b"i32" => Self::I32,
-                    b"i64" => Self::I64,
-                    b"i128" => Self::I128,
-
-                    b"u8" => Self::U8,
-                    b"u16" => Self::U16,
-                    b"u32" => Self::U32,
-                    b"u64" => Self::U64,
-                    b"u128" => Self::U128,
-                    
-                    b"bool" => Self::Bool,
-                    otherwise => todo!("{:?}", String::from_utf8(otherwise.to_owned())),
-                }
+                //     b"bool" => Self::Bool,
+                //     otherwise => todo!("{:?}", String::from_utf8(otherwise.to_owned())),
+                // }
             }
             crate::gimli::DW_TAG_structure_type => {
                 let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
@@ -121,20 +131,33 @@ where
                 }
 
                 if let Some(_variants) = variants {
-                    Self::Enum(r#enum::Enum::from_dw_tag_structure_type(dwarf, unit, entry)?)
+                    Self::Enum(r#enum::Enum::from_dw_tag_structure_type(
+                        dwarf, unit, entry,
+                    )?)
                 } else {
                     Self::Struct(r#struct::Struct::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?)
                 }
             }
-            crate::gimli::DW_TAG_enumeration_type => Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap()),
+            crate::gimli::DW_TAG_enumeration_type => {
+                Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap())
+            }
             crate::gimli::DW_TAG_pointer_type => {
                 //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 //crate::inspect_tree(&mut tree, dwarf, unit);
                 Self::Ref(Ref::from_dw_pointer_type(dwarf, unit, entry))
             }
-            otherwise @ _ => panic!("{}", otherwise.to_string()),
+            crate::gimli::DW_TAG_subroutine_type => {
+                //let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
+                //crate::inspect_tree(&mut tree, dwarf, unit);
+                Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
+            }
+            otherwise @ _ => {
+                let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
+                crate::inspect_tree(&mut tree, dwarf, unit);
+                panic!("{}", otherwise.to_string())
+            },
         })
     }
 
@@ -158,9 +181,10 @@ where
             Type::U128 => 16,
             Type::Usize => todo!(),
             Type::Unit => 0,
-            Type::Struct(v) => v.size(),
+            Type::Struct(v) => v.size().unwrap().unwrap().try_into().unwrap(),
             Type::Enum(v) => v.size(),
             Type::Ref(_) => 8,
+            _ => 0,
         }
     }
 }

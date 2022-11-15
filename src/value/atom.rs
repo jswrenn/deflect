@@ -3,7 +3,7 @@ use std::{
     ops,
 };
 
-pub struct Field<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
+pub struct Atom<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -11,7 +11,7 @@ where
     value: crate::Bytes<'value>,
 }
 
-impl<'dwarf, 'value, R> Field<'dwarf, 'value, R>
+impl<'dwarf, 'value, R> Atom<'dwarf, 'value, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -21,45 +21,28 @@ where
     ) -> Self {
         Self { schema, value }
     }
-
-    /// Get the value of this field.
-    pub fn value(&'dwarf self) -> Result<super::Value<'dwarf, 'value, R>, crate::Error> {
-        let r#type = self
-            .r#type()
-            .transpose()
-            .ok_or(
-                crate::ErrorKind::MissingAttr {
-                    attr: crate::gimli::DW_AT_type,
-                }
-                .into(),
-            )
-            .flatten()?;
-        Ok(unsafe { super::Value::with_type(r#type, self.value) })
-    }
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, 'value, R>
+impl<'dwarf, 'value, R> fmt::Debug for Atom<'dwarf, 'value, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Some(field_name) = (match self.name() {
+        let Some(name) = (match self.name() {
             Ok(name) => name,
             Err(err) => panic!("{:?}", err),
         }) else {
             panic!("field does not have a name");
         };
-        let field_name = match field_name.to_string_lossy() {
+        let name = match name.to_string_lossy() {
             Ok(name) => name,
             Err(err) => panic!("{:?}", err),
         };
-        f.write_str(&field_name)?;
-        f.write_str(" : ")?;
-        self.value().fmt(f)
+        f.write_str(&name)
     }
 }
 
-impl<'dwarf, 'value, R> ops::Deref for Field<'dwarf, 'value, R>
+impl<'dwarf, 'value, R> ops::Deref for Atom<'dwarf, 'value, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

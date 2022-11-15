@@ -1,8 +1,7 @@
-use super::{Name, Offset, Type};
 use std::fmt;
+use super::Name;
 
-/// A field of a [struct][super::Struct] or [variant][super::Variant].
-pub struct Field<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Atom<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -11,26 +10,17 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, R>
+/// A primitive, non-compound (i.e., "atomic") type, like `u8` or `bool`.
+impl<'dwarf, R> Atom<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.name().unwrap().as_ref(), f)
-    }
-}
-
-impl<'dwarf, R> Field<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    /// Construct a new `Field` from a [`DW_TAG_member`][crate::gimli::DW_TAG_member].
-    pub(crate) fn from_dw_tag_member(
+    pub(crate) fn from_dw_tag_base_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        crate::check_tag(&entry, crate::gimli::DW_TAG_member)?;
+        crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
         Ok(Self { dwarf, unit, entry })
     }
 
@@ -54,28 +44,22 @@ where
         Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
     }
 
-    /// The size of this field, in bytes.
+    /// The size of this type, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
-    /// The alignment of this field, in bytes.
+    /// The alignment of this type, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
+}
 
-    /// The offset at which this field occurs.
-    pub fn offset(&'dwarf self) -> Result<Option<Offset<'dwarf, R>>, crate::Error> {
-        Ok(Offset::from_die(self.dwarf(), self.unit(), self.entry())?)
-    }
-
-    /// The type of the field.
-    pub fn r#type(&'dwarf self) -> Result<Option<Type<'dwarf, R>>, crate::Error> {
-        let maybe_type = crate::get_type_opt(self.unit(), self.entry())?;
-        Ok(if let Some(r#type) = maybe_type {
-            Some(super::Type::from_die(self.dwarf, self.unit, r#type)?)
-        } else {
-            None
-        })
+impl<'dwarf, R> fmt::Debug for Atom<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.name().unwrap().as_ref(), f)
     }
 }

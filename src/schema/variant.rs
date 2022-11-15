@@ -1,4 +1,5 @@
-use std::{fmt, borrow::Cow};
+use super::Name;
+use std::{borrow::Cow, fmt};
 
 #[derive(Clone)]
 pub struct Variant<'dwarf, R: crate::gimli::Reader<Offset = usize>>
@@ -17,10 +18,17 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = format!("{} = {:?}", self.name(), &self.discriminant_value);
+        let name = format!(
+            "{} = {:?}",
+            self.name().unwrap().unwrap(),
+            &self.discriminant_value
+        );
         let mut ds = f.debug_struct(name.as_str());
         self.fields(|field| {
-            ds.field(&field.name().unwrap().to_string(), &field.r#type());
+            ds.field(
+                &field.name().unwrap().unwrap().to_string().unwrap(),
+                &field.r#type(),
+            );
         });
         ds.finish()
     }
@@ -46,12 +54,34 @@ where
         }
     }
 
-    pub fn name(&self) -> String {
-        crate::get_name(&self.entry, self.dwarf, self.unit)
-            .unwrap()
-            .to_string_lossy()
-            .unwrap()
-            .to_string()
+    /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
+    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+        self.dwarf
+    }
+
+    /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
+    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+        self.unit
+    }
+
+    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
+    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+        &self.entry
+    }
+
+    /// The name of this primitive type.
+    pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
+        Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+    }
+
+    /// The size of this field, in bytes.
+    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+        Ok(crate::get_size(self.entry())?)
+    }
+
+    /// The alignment of this field, in bytes.
+    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
+        Ok(crate::get_align(self.entry())?)
     }
 
     pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::Error> {
@@ -83,25 +113,5 @@ where
                 .unwrap());
             }
         }
-    }
-
-    pub fn size(&self) -> usize {
-        self.entry
-            .attr_value(crate::gimli::DW_AT_byte_size)
-            .unwrap()
-            .and_then(|r| r.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap()
-    }
-
-    pub fn align(&self) -> usize {
-        self.entry
-            .attr_value(crate::gimli::DW_AT_alignment)
-            .unwrap()
-            .and_then(|r| r.udata_value())
-            .unwrap()
-            .try_into()
-            .unwrap()
     }
 }

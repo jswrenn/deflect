@@ -26,6 +26,7 @@ use std::{
     sync::LazyLock,
 };
 
+mod debug;
 mod schema;
 mod r#value;
 
@@ -317,7 +318,7 @@ where
     let (unit, offset) = dw_unit_and_die_of::<T, _>(ctx)?;
 
     let mut tree = unit.entries_tree(Some(offset))?;
-    inspect_tree(&mut tree, ctx.dwarf(), unit);
+    //debug::inspect_tree(&mut tree, ctx.dwarf(), unit);
 
     let die = unit.entry(offset).unwrap();
     Type::from_die(ctx.dwarf(), unit, die)
@@ -449,36 +450,6 @@ fn get_attr_ref<R: crate::gimli::Reader<Offset = usize>>(
     Ok(None)
 }
 
-fn eval_addr<R>(
-    unit: &crate::gimli::Unit<R>,
-    attr: AttributeValue<R>,
-    start: u64,
-) -> Result<Option<u64>, anyhow::Error>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    if let Some(loc) = attr.exprloc_value() {
-        // TODO: We probably don't need full evaluation here and can
-        // just support PlusConstant.
-        let mut eval = loc.evaluation(unit.encoding());
-        eval.set_initial_value(start);
-        if let crate::gimli::EvaluationResult::Complete = eval.evaluate()? {
-            let result = eval.result();
-            match result[..] {
-                [crate::gimli::Piece {
-                    size_in_bits: None,
-                    bit_offset: None,
-                    location: crate::gimli::Location::Address { address },
-                }] => return Ok(Some(address)),
-                _ => eprintln!("Warning: Unsupported evaluation result {:?}", result,),
-            }
-        }
-    } else if let AttributeValue::Udata(offset) = attr {
-        return Ok(Some(start + offset));
-    }
-    Ok(None)
-}
-
 fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     file_index: u64,
     unit: &'a crate::gimli::Unit<R>,
@@ -498,77 +469,6 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     Ok(path)
 }
 
-fn inspect_tree<R: crate::gimli::Reader<Offset = usize>>(
-    tree: &mut crate::gimli::EntriesTree<R>,
-    dwarf: &crate::gimli::Dwarf<R>,
-    unit: &crate::gimli::Unit<R>,
-) -> Result<(), anyhow::Error> {
-    inspect_tree_node(tree.root()?, dwarf, unit, 0)
-}
-
-fn inspect_tree_node<R: crate::gimli::Reader<Offset = usize>>(
-    node: crate::gimli::EntriesTreeNode<R>,
-    dwarf: &crate::gimli::Dwarf<R>,
-    unit: &crate::gimli::Unit<R>,
-    depth: isize,
-) -> Result<(), anyhow::Error> {
-    inspect_entry(node.entry(), dwarf, unit, depth)?;
-    let mut children = node.children();
-    while let Some(child) = children.next()? {
-        inspect_tree_node(child, dwarf, unit, depth + 1)?;
-    }
-    Ok(())
-}
-
-fn inspect_entry<R: crate::gimli::Reader<Offset = usize>>(
-    entry: &crate::gimli::DebuggingInformationEntry<R, usize>,
-    dwarf: &crate::gimli::Dwarf<R>,
-    unit: &crate::gimli::Unit<R>,
-    depth: isize,
-) -> Result<(), anyhow::Error> {
-    let indent = (depth * 4).try_into().unwrap_or(0);
-    eprintln!(
-        "{:indent$} <0x{offset:x}> {tag:?}",
-        "",
-        offset = entry.offset().0,
-        tag = entry.tag().static_string().expect("Unknown tag kind."),
-    );
-    let mut attrs = entry.attrs();
-    while let Some(attr) = attrs.next()? {
-        match dwarf.attr_string(unit, attr.value()) {
-            Ok(r) => {
-                let val = r.to_string_lossy()?;
-                match &*attr.name().to_string() {
-                    "DW_AT_MIPS_linkage_name" => {
-                        let val = rustc_demangle::demangle(&val);
-                        eprintln!("{:indent$}    {}: {:?}", "", attr.name(), val)
-                    }
-                    _ => eprintln!("{:indent$}    {}: {:?}", "", attr.name(), val),
-                }
-            }
-            _ if attr.exprloc_value().is_some() => {
-                eprint!("{:indent$}    {} [", "", attr.name());
-                let mut ops = attr.exprloc_value().unwrap().operations(unit.encoding());
-                while let Some(op) = ops.next()? {
-                    eprint!("{op:?}, ");
-                }
-                eprintln!("]");
-            }
-            _ => {
-                if let (crate::gimli::DW_AT_decl_file, AttributeValue::FileIndex(file_index)) =
-                    (attr.name(), attr.value())
-                {
-                    let path = fi_to_string(file_index, unit)?;
-                    eprintln!("{:indent$}    {}: {:?}", "", attr.name(), path);
-                } else {
-                    eprintln!("{:indent$}    {}: {:?}", "", attr.name(), attr.value())
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 struct DebugDisplay<T>(T);
 
 impl<T> fmt::Debug for DebugDisplay<T>
@@ -577,5 +477,31 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+struct DebugDwarf<'dwarf, 'entry, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    dwarf: &'dwarf crate::gimli::Dwarf<R>,
+    unit: &'dwarf crate::gimli::Unit<R, usize>,
+    entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+}
+
+impl<'dwarf, 'entry, R> DebugDwarf<'dwarf, 'entry, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn new(dwarf: &'dwarf crate::gimli::Dwarf<R>, unit: &'dwarf crate::gimli::Unit<R, usize>, entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>) -> Self { Self { dwarf, unit, entry } }
+}
+
+impl<'dwarf, 'entry, R> fmt::Debug for DebugDwarf<'dwarf, 'entry, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        debug::inspect_entry(f, self.entry, self.dwarf, self.unit, 0).unwrap();
+        Ok(())
     }
 }

@@ -54,6 +54,18 @@ where
     }
 }
 
+impl<'value, 'dwarf, R> fmt::Debug for Enum<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug_struct = f.debug_struct(std::any::type_name::<Self>());
+        debug_struct.field("schema", &self.schema);
+        debug_struct.field("value", &self.value);
+        Ok(())
+    }
+}
+
 impl<'value, 'dwarf, R> fmt::Display for Enum<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,

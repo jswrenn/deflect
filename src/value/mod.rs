@@ -90,7 +90,29 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            Self::bool(v) => v.fmt(f),
+            Self::char(v) => v.fmt(f),
+            Self::f32(v) => v.fmt(f),
+            Self::f64(v) => v.fmt(f),
+            Self::i8(v) => v.fmt(f),
+            Self::i16(v) => v.fmt(f),
+            Self::i32(v) => v.fmt(f),
+            Self::i64(v) => v.fmt(f),
+            Self::i128(v) => v.fmt(f),
+            Self::isize(v) => v.fmt(f),
+            Self::u8(v) => v.fmt(f),
+            Self::u16(v) => v.fmt(f),
+            Self::u32(v) => v.fmt(f),
+            Self::u64(v) => v.fmt(f),
+            Self::u128(v) => v.fmt(f),
+            Self::usize(v) => v.fmt(f),
+            Self::unit(v) => v.fmt(f),
+            Self::Struct(v) => v.fmt(f),
+            Self::Enum(v) => v.fmt(f),
+            Self::Ref(v) => v.fmt(f),
+            Self::Function(v) => v.fmt(f),
+        }
     }
 }
 
@@ -125,15 +147,26 @@ where
     }
 }
 
-macro_rules! generate_conversions {
+macro_rules! generate_primitive_conversions {
     ($($t:ident,)*) => {
         $(
+            /// Upcast a `Atom<'value, 'dwarf, $t, R>` to a `Value<'value, 'dwarf, R>`.
             impl<'value, 'dwarf, R> From<Atom<'value, 'dwarf, $t, R>> for Value<'value, 'dwarf, R>
             where
                 R: crate::gimli::Reader<Offset = usize>,
             {
                 fn from(atom: Atom<'value, 'dwarf, $t, R>) -> Self {
                     Value::$t(atom)
+                }
+            }
+
+            /// Downcast an `&Atom<'value, 'dwarf, T, R>` into a `&'value T`.
+            impl<'a, 'value, 'dwarf, R> From<&'a Atom<'value, 'dwarf, $t, R>> for &'value $t
+            where
+                R: crate::gimli::Reader<Offset = usize>,
+            {
+                fn from(atom: &'a Atom<'value, 'dwarf, $t, R>) -> Self {
+                    atom.value()
                 }
             }
 
@@ -147,6 +180,22 @@ macro_rules! generate_conversions {
                 }
             }
 
+            /// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Atom<'value, 'dwarf, T, R>`.
+            impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'a Atom<'value, 'dwarf, $t, R>
+            where
+                R: crate::gimli::Reader<Offset = usize>,
+            {
+                type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+
+                fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+                    if let Value::$t(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(crate::DowncastErr::new(value))
+                    }
+                }
+            }
+
             /// Attempt to downcast a `Value<'value, 'dwarf, R>` into a `Atom<'value, 'dwarf, T, R>`.
             impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for Atom<'value, 'dwarf, $t, R>
             where
@@ -157,6 +206,22 @@ macro_rules! generate_conversions {
                 fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
                     if let Value::$t(value) = value {
                         Ok(value)
+                    } else {
+                        Err(crate::DowncastErr::new(value))
+                    }
+                }
+            }
+
+            /// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'value T`.
+            impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'value $t
+            where
+                R: crate::gimli::Reader<Offset = usize>,
+            {
+                type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+
+                fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+                    if let Value::$t(atom) = value {
+                        Ok(atom.value())
                     } else {
                         Err(crate::DowncastErr::new(value))
                     }
@@ -185,7 +250,7 @@ macro_rules! generate_conversions {
 #[allow(non_camel_case_types)]
 type unit = ();
 
-generate_conversions! {
+generate_primitive_conversions! {
     bool,
     char,
     f32,

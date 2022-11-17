@@ -78,6 +78,17 @@ where
     }
 }
 
+impl<'dwarf, T, R> fmt::Debug for Atom<'dwarf, T, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug_tuple = f.debug_tuple(std::any::type_name::<Self>());
+        debug_tuple.field(&crate::DebugDwarf::new(self.dwarf, self.unit, &self.entry));
+        debug_tuple.finish()
+    }
+}
+
 impl<'dwarf, T, R> fmt::Display for Atom<'dwarf, T, R>
 where
     R: crate::gimli::Reader<Offset = usize>,

@@ -36,10 +36,14 @@ where
 
 impl<'value, 'dwarf, T, R> fmt::Debug for Atom<'value, 'dwarf, T, R>
 where
+    T: fmt::Debug,
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        let mut debug_struct = f.debug_struct(std::any::type_name::<Self>());
+        debug_struct.field("schema", &self.schema);
+        debug_struct.field("value", &self.value);
+        Ok(())
     }
 }
 

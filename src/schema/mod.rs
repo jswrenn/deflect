@@ -162,7 +162,7 @@ where
             }
             otherwise @ _ => {
                 let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                let _ = crate::inspect_tree(&mut tree, dwarf, unit);
+                //let _ = crate::debug::inspect_tree(&mut tree, dwarf, unit);
                 panic!("{}", otherwise.to_string())
             }
         })

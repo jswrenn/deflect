@@ -22,7 +22,7 @@ where
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
         let mut tree = unit.entries_tree(Some(entry.offset()))?;
-        crate::inspect_tree(&mut tree, dwarf, unit);
+        //crate::debug::inspect_tree(&mut tree, dwarf, unit);
         crate::check_tag(&entry, crate::gimli::DW_TAG_member)?;
         Ok(Self { dwarf, unit, entry })
     }

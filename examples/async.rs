@@ -155,11 +155,10 @@ fn main() -> Result<(), deflect::Error> {
     let mut task = await3_level5();
     //let _ = poll_once(task.as_mut());
 
-    let erased: &dyn Reflect = &poll(task);
+    let erased: &dyn Reflect = &task;
     let context = deflect::current_exe_debuginfo();
-    let value = erased.reflect(&context);
-
-    println!("{:#?}", value);
+    let value = erased.reflect(&context)?;
+    println!("{value}");
 
     Ok(())
 }

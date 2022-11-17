@@ -1,10 +1,6 @@
-use std::{
-    fmt::{self, Write},
-    mem::MaybeUninit,
-    ops,
-};
+use std::{fmt, ops};
 
-pub struct Ref<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
+pub struct Ref<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -12,7 +8,7 @@ where
     value: crate::Bytes<'value>,
 }
 
-impl<'dwarf, 'value, R> Ref<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> Ref<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -23,7 +19,8 @@ where
         Self { schema, value }
     }
 
-    pub fn value(&'dwarf self) -> Result<super::Value<'dwarf, 'value, R>, crate::Error> {
+    /// The value behind this reference.
+    pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let r#type = r#type.ok_or(crate::ErrorKind::MissingAttr {
@@ -32,11 +29,11 @@ where
         let size = r#type.size()?.unwrap_or(0).try_into().unwrap();
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
-        Ok(unsafe { super::Value::with_type(r#type, value) })
+        Ok(unsafe { super::Value::with_type(r#type, &*value) })
     }
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Ref<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> fmt::Display for Ref<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -45,7 +42,7 @@ where
     }
 }
 
-impl<'dwarf, 'value, R> ops::Deref for Ref<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> ops::Deref for Ref<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

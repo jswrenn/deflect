@@ -2,22 +2,13 @@ use super::{Name, Offset, Type};
 use std::fmt;
 
 /// A field of a [struct][super::Struct] or [variant][super::Variant].
-pub struct Field<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Field<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     dwarf: &'dwarf crate::gimli::Dwarf<R>,
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-}
-
-impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.name().unwrap().as_ref(), f)
-    }
 }
 
 impl<'dwarf, R> Field<'dwarf, R>
@@ -30,6 +21,8 @@ where
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
+        let mut tree = unit.entries_tree(Some(entry.offset()))?;
+        crate::inspect_tree(&mut tree, dwarf, unit);
         crate::check_tag(&entry, crate::gimli::DW_TAG_member)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -77,5 +70,18 @@ where
         } else {
             None
         })
+    }
+}
+
+impl<'value, 'dwarf, R> fmt::Display for Field<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.name() {
+            Ok(Some(field_name)) => field_name.fmt(f),
+            Ok(None) => panic!("field does not have a name"),
+            Err(err) => panic!("reader error: {:?}", err),
+        }
     }
 }

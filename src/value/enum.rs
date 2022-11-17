@@ -1,56 +1,41 @@
-use std::fmt;
+use std::{fmt, ops};
 
-use crate::schema::DiscriminantValue;
-pub struct Enum<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
+/// A value of a sum type; e.g., a Rust-style enum.
+pub struct Enum<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    r#type: crate::schema::Enum<'dwarf, R>,
+    schema: crate::schema::Enum<'dwarf, R>,
     value: crate::Bytes<'value>,
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Enum<'dwarf, 'value, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.name())?;
-        f.write_str("::")?;
-        self.variant()
-            .expect("Could not reflect into variant.")
-            .fmt(f)
-    }
-}
-
-impl<'dwarf, 'value, R> Enum<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> Enum<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     pub(crate) unsafe fn new(
-        r#type: crate::schema::Enum<'dwarf, R>,
+        schema: crate::schema::Enum<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
-        Self { r#type, value }
+        Self { schema, value }
     }
 
-    pub fn name(&self) -> String {
-        self.r#type.name().unwrap().to_string()
-    }
-
-    pub fn variant(&self) -> Result<super::Variant<'dwarf, 'value, R>, crate::Error> {
+    /// The variant of this enum.
+    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::Error> {
         let mut default = None;
         let mut matched = None;
 
-        let discr = self.r#type.discriminant();
+        let discr = self.discriminant();
         let discr_loc = discr.location().clone();
         let enum_addr = self.value.as_ptr() as *const () as u64;
         let discr_addr = discr_loc.address(enum_addr).unwrap();
 
-        let mut variants = self.r#type.variants()?;
+        let mut variants = self.variants()?;
         let mut variants = variants.iter()?;
 
-        while let Some(variant) = variants.next()? {
+        while let Some(variant) = variants.try_next()? {
             if let Some(discriminant) = variant.discriminant_value() {
+                use crate::schema::DiscriminantValue;
                 let matches = match discriminant {
                     DiscriminantValue::U8(v) => (unsafe { *(discr_addr as *const u8) } == v),
                     DiscriminantValue::U16(v) => (unsafe { *(discr_addr as *const u16) } == v),
@@ -66,5 +51,29 @@ where
         }
 
         Ok(unsafe { super::Variant::new(matched.or(default).unwrap(), self.value) })
+    }
+}
+
+impl<'value, 'dwarf, R> fmt::Display for Enum<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.name().unwrap())?;
+        f.write_str("::")?;
+        self.variant()
+            .expect("Could not reflect into variant.")
+            .fmt(f)
+    }
+}
+
+impl<'value, 'dwarf, R> ops::Deref for Enum<'value, 'dwarf, R>
+where
+    R: 'dwarf + crate::gimli::Reader<Offset = usize>,
+{
+    type Target = crate::schema::Enum<'dwarf, R>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.schema
     }
 }

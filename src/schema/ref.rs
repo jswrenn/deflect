@@ -1,6 +1,6 @@
 use std::fmt;
 
-pub struct Ref<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Ref<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -9,29 +9,11 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Ref<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Some(name) = (match self.name() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        }) else {
-            panic!("type does not have a name");
-        };
-        let name = match name.to_string_lossy() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        };
-        f.write_str(&name)
-    }
-}
-
 impl<'dwarf, R> Ref<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
+    /// Construct a new `Ref` from a [`DW_TAG_pointer_type`][crate::gimli::DW_TAG_pointer_type].
     pub(crate) fn from_dw_pointer_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -65,7 +47,7 @@ where
         )?)
     }
 
-    /// The size of this field, in bytes.
+    /// The size of this type, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
@@ -78,5 +60,18 @@ where
         } else {
             None
         })
+    }
+}
+
+impl<'value, 'dwarf, R> fmt::Display for Ref<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.name() {
+            Ok(Some(type_name)) => type_name.fmt(f),
+            Ok(None) => panic!("type does not have a name"),
+            Err(err) => panic!("reader error: {:?}", err),
+        }
     }
 }

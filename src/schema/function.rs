@@ -1,7 +1,7 @@
 use super::Name;
 use std::{borrow::Cow, fmt};
 
-/// A function.
+/// A function type.
 pub struct Function<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -11,7 +11,7 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'dwarf, 'value, R> Function<'dwarf, R>
+impl<'value, 'dwarf, R> Function<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -46,7 +46,7 @@ where
     }
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Function<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for Function<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

@@ -1,5 +1,7 @@
 use std::{borrow::Cow, fmt};
 
+use itertools::Itertools;
+
 /// A sum type; e.g., a Rust-style enum.
 pub struct Enum<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -12,25 +14,11 @@ where
     discriminant: super::Discriminant<'dwarf, R>,
 }
 
-impl<'dwarf, R> fmt::Debug for Enum<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_struct = f.debug_tuple(&self.name().unwrap());
-        let mut variants = self.variants().unwrap();
-        let mut variants = variants.iter().unwrap();
-        while let Some(variant) = variants.next().unwrap() {
-            debug_struct.field(&variant);
-        }
-        debug_struct.finish()
-    }
-}
-
 impl<'dwarf, R> Enum<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
+    /// Construct an `Enum` from a [`DW_TAG_enumeration_type`][crate::gimli::DW_TAG_enumeration_type].
     pub(crate) fn from_dw_tag_enumeration_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -49,6 +37,7 @@ where
         })
     }
 
+    /// Construct an `Enum` from a [`DW_TAG_structure_type`][crate::gimli::DW_TAG_structure_type].
     pub(crate) fn from_dw_tag_structure_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -101,14 +90,17 @@ where
         &self.entry
     }
 
+    /// The name of this type.
     pub fn name(&self) -> Result<Cow<str>, crate::gimli::Error> {
         self.name.to_string_lossy()
     }
 
+    /// The discriminant of this type.
     pub fn discriminant(&self) -> &super::Discriminant<R> {
         &self.discriminant
     }
 
+    /// Variants of this type.
     pub fn variants(&self) -> Result<super::Variants<'dwarf, R>, crate::Error> {
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
@@ -137,5 +129,40 @@ where
     /// The alignment of this type, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
+    }
+}
+
+impl<'dwarf, R> fmt::Display for Enum<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("enum ")?;
+        match self.name() {
+            Ok(enum_name) => enum_name.fmt(f)?,
+            Err(err) => panic!("reader error: {:?}", err),
+        };
+
+        f.write_str(" {")?;
+
+        if f.alternate() {
+            f.write_str("\n    ")?;
+        } else {
+            f.write_str(" ")?;
+        }
+
+        let mut debug_struct = f.debug_tuple(&self.name().unwrap());
+        let mut variants = self.variants().unwrap();
+        let mut variants = variants.iter().unwrap();
+
+        variants
+            .format(if f.alternate() { ",\n    " } else { ", " })
+            .fmt(f)?;
+
+        if f.alternate() {
+            f.write_str(",\n}")
+        } else {
+            f.write_str(" }")
+        }
     }
 }

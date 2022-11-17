@@ -21,8 +21,8 @@ fn main() -> Result<(), deflect::Error> {
 
     let erased: &dyn Reflect = &foo;
     let context = deflect::current_exe_debuginfo();
-    let value = erased.reflect(&context);
-    println!("{:#?}", value);
+    let value = erased.reflect(&context)?;
+    println!("{value}");
 
     Ok(())
 }

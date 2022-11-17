@@ -17,6 +17,7 @@ use std::{
     backtrace::Backtrace,
     borrow::Cow,
     ffi::c_void,
+    fmt,
     marker::PhantomData,
     mem::{self, MaybeUninit},
     ops,
@@ -105,8 +106,7 @@ impl dyn Reflect {
     pub fn reflect<'value, 'dbginfo, D: DebugInfo>(
         &'value self,
         debug_info: &'dbginfo D,
-    ) -> Result<Value<'dbginfo, 'value, D::Reader>, Error>
-    {
+    ) -> Result<Value<'value, 'dbginfo, D::Reader>, Error> {
         let context = debug_info.context();
         let (unit, offset) = self.dw_unit_and_die_of(context)?;
         let entry = unit.entry(offset)?;
@@ -158,6 +158,14 @@ impl dyn Reflect {
     }
 }
 
+impl fmt::Debug for dyn Reflect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let context = current_exe_debuginfo();
+        let value = self.reflect(&context).unwrap();
+        fmt::Display::fmt(&value, f)
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 #[error("{}\n{}", self.error, self.backtrace)]
 pub struct Error {
@@ -184,8 +192,37 @@ impl From<crate::gimli::Error> for Error {
 }
 
 #[derive(thiserror::Error, Debug)]
+#[error("Could not downcast {:?}, received {:?}", .value, std::any::type_name::<T>())]
+pub struct DowncastErr<V, T>
+where
+    V: fmt::Debug,
+{
+    value: V,
+    r#type: PhantomData<T>,
+}
+
+impl<V, T> DowncastErr<V, T>
+where
+    V: fmt::Debug,
+{
+    pub fn new(value: V) -> Self {
+        Self {
+            value,
+            r#type: PhantomData,
+        }
+    }
+
+    pub fn into<V2, T2>(self) -> DowncastErr<V2, T2>
+    where
+        V2: fmt::Debug + From<V>,
+    {
+        DowncastErr::new(self.value.into())
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {
-    #[error("tag mismatch; expected {:?}, received {:?}", .expected, .actual)]
+    #[error("tag mismatch; expected {:?}, received {:?}", .expected.static_string(), .actual.static_string())]
     TagMismatch {
         expected: crate::gimli::DwTag,
         actual: crate::gimli::DwTag,
@@ -261,7 +298,7 @@ where
 pub fn reflect<'ctx, 'value, T: ?Sized, R>(
     ctx: &'ctx addr2line::Context<R>,
     value: &'value T,
-) -> Result<value::Value<'ctx, 'value, R>, Error>
+) -> Result<value::Value<'value, 'ctx, R>, Error>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -532,11 +569,13 @@ fn inspect_entry<R: crate::gimli::Reader<Offset = usize>>(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+struct DebugDisplay<T>(T);
+
+impl<T> fmt::Debug for DebugDisplay<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }

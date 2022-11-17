@@ -1,9 +1,7 @@
-use std::{
-    fmt::{self, Write},
-    ops,
-};
+use std::{fmt, ops};
 
-pub struct Field<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
+/// A field of a [struct][super::Struct] or [variant][super::Variant].
+pub struct Field<'value, 'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -11,7 +9,7 @@ where
     value: crate::Bytes<'value>,
 }
 
-impl<'dwarf, 'value, R> Field<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> Field<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -22,8 +20,8 @@ where
         Self { schema, value }
     }
 
-    /// Get the value of this field.
-    pub fn value(&'dwarf self) -> Result<super::Value<'dwarf, 'value, R>, crate::Error> {
+    /// The value of this field.
+    pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
         let r#type = self
             .r#type()
             .transpose()
@@ -38,29 +36,25 @@ where
     }
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Field<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> fmt::Display for Field<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        println!("field");
-        let Some(field_name) = (match self.name() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        }) else {
-            panic!("field does not have a name");
+        match self.name() {
+            Ok(Some(field_name)) => field_name.fmt(f)?,
+            Ok(None) => panic!("field does not have a name"),
+            Err(err) => panic!("reader error: {:?}", err),
         };
-        let field_name = match field_name.to_string_lossy() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        };
-        f.write_str(&field_name)?;
         f.write_str(" : ")?;
-        self.value().fmt(f)
+        match self.value() {
+            Ok(value) => value.fmt(f),
+            Err(err) => panic!("reader error: {:?}", err),
+        }
     }
 }
 
-impl<'dwarf, 'value, R> ops::Deref for Field<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> ops::Deref for Field<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

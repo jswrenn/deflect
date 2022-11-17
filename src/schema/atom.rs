@@ -1,17 +1,18 @@
 use super::Name;
-use std::fmt;
+use std::{fmt, marker::PhantomData};
 
 /// A primitive, non-compound (i.e., "atomic") type, like `u8` or `bool`.
-pub struct Atom<'dwarf, R>
+pub struct Atom<'dwarf, T, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     dwarf: &'dwarf crate::gimli::Dwarf<R>,
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    r#type: PhantomData<T>,
 }
 
-impl<'dwarf, R> Atom<'dwarf, R>
+impl<'dwarf, T, R> Atom<'dwarf, T, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -22,7 +23,28 @@ where
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
-        Ok(Self { dwarf, unit, entry })
+        let name = Name::from_die(dwarf, unit, &entry)?.ok_or(crate::ErrorKind::MissingAttr {
+            attr: crate::gimli::DW_AT_name,
+        })?;
+        let name = name.to_slice()?;
+
+        if name != std::any::type_name::<T>().as_bytes() {
+            Err(crate::ErrorKind::ValueMismatch)?;
+        }
+
+        let size = crate::get_size(&entry)?.ok_or(crate::ErrorKind::MissingAttr {
+            attr: crate::gimli::DW_AT_byte_size,
+        })?;
+        if size != core::mem::size_of::<T>() as _ {
+            Err(crate::ErrorKind::ValueMismatch)?;
+        }
+
+        Ok(Self {
+            dwarf,
+            unit,
+            entry,
+            r#type: PhantomData,
+        })
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
@@ -54,71 +76,17 @@ where
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
-
-    /// Interpret this `Atom` as a primitive Rust type.
-    pub fn to_rust(&self) -> Option<RustAtom> {
-        let Some(name) = (match self.name() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        }) else {
-            return None;
-        };
-        let name = match name.to_slice() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        };
-        Some(match name.as_ref() {
-            b"bool" => RustAtom::Bool,
-            b"char" => RustAtom::Char,
-
-            b"i8" => RustAtom::I8,
-            b"i16" => RustAtom::I16,
-            b"i32" => RustAtom::I32,
-            b"i64" => RustAtom::I64,
-            b"i128" => RustAtom::I128,
-            b"isize" => RustAtom::ISize,
-
-            b"u8" => RustAtom::U8,
-            b"u16" => RustAtom::U16,
-            b"u32" => RustAtom::U32,
-            b"u128" => RustAtom::U128,
-            b"usize" => RustAtom::USize,
-
-            b"()" => RustAtom::Unit,
-            b"!" => RustAtom::Never,
-
-            _ => return None,
-        })
-    }
 }
 
-impl<'dwarf, R> fmt::Debug for Atom<'dwarf, R>
+impl<'dwarf, T, R> fmt::Display for Atom<'dwarf, T, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.name().unwrap().as_ref(), f)
+        match self.name() {
+            Ok(Some(type_name)) => type_name.fmt(f),
+            Ok(None) => panic!("type does not have a name"),
+            Err(err) => panic!("reader error: {:?}", err),
+        }
     }
-}
-
-/// A primitive Rust type.
-pub enum RustAtom {
-    Bool,
-    Char,
-    F32,
-    F64,
-    I8,
-    I16,
-    I32,
-    I64,
-    I128,
-    ISize,
-    U8,
-    U16,
-    U32,
-    U64,
-    U128,
-    USize,
-    Unit,
-    Never,
 }

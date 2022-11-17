@@ -13,30 +13,7 @@ where
     discriminant_value: Option<super::discriminant::DiscriminantValue>,
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Variant<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = format!(
-            "{} = {:?}",
-            self.name().unwrap().unwrap(),
-            &self.discriminant_value
-        );
-        let mut ds = f.debug_struct(name.as_str());
-        let mut fields = self.fields().unwrap();
-        let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.next().unwrap() {
-            ds.field(
-                &field.name().unwrap().unwrap().to_string().unwrap(),
-                &field.r#type(),
-            );
-        }
-        ds.finish()
-    }
-}
-
-impl<'dwarf, 'value, R> Variant<'dwarf, R>
+impl<'value, 'dwarf, R> Variant<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -69,17 +46,17 @@ where
         &self.entry
     }
 
-    /// The name of this primitive type.
+    /// The name of this variant.
     pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
         Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
     }
 
-    /// The size of this field, in bytes.
+    /// The size of this variant, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
-    /// The alignment of this field, in bytes.
+    /// The alignment of this variant, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
@@ -92,9 +69,45 @@ where
         self.discriminant_value
     }
 
-    /// The fields of this struct.
+    /// The fields of this variant.
     pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
         let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
+    }
+}
+
+impl<'value, 'dwarf, R> fmt::Display for Variant<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug_struct = match self.name() {
+            Ok(Some(variant_name)) => match variant_name.to_string_lossy() {
+                Ok(variant_name) => f.debug_struct(&variant_name),
+                Err(err) => panic!("reader error: {err}"),
+            },
+            Ok(None) => panic!("variant does not have a name"),
+            Err(err) => panic!("reader error: {err}"),
+        };
+        let mut fields = self.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.try_next().unwrap() {
+            let field_type = match field.r#type() {
+                Ok(Some(field_type)) => field_type,
+                Ok(None) => panic!("field does not have a name"),
+                Err(err) => panic!("reader error: {err}"),
+            };
+            match field.name() {
+                Ok(Some(field_name)) => match field_name.to_string_lossy() {
+                    Ok(field_name) => {
+                        debug_struct.field(&field_name, &crate::DebugDisplay(field_type))
+                    }
+                    Err(err) => panic!("reader error: {}", err),
+                },
+                Ok(None) => panic!("type does not have a name"),
+                Err(err) => panic!("reader error: {}", err),
+            };
+        }
+        debug_struct.finish()
     }
 }

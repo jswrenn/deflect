@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-pub struct Struct<'dwarf, 'value, R: crate::gimli::Reader<Offset = usize>>
+pub struct Struct<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -8,7 +8,7 @@ where
     value: crate::Bytes<'value>,
 }
 
-impl<'dwarf, 'value, R> Struct<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> Struct<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -19,19 +19,20 @@ where
         Self { schema, value }
     }
 
+    /// The fields of this struct.
     pub fn fields<F>(&self, mut f: F)
     where
-        F: FnMut(super::Field<'dwarf, 'value, R>),
+        F: FnMut(super::Field<'value, 'dwarf, R>),
     {
         let mut fields = self.schema.fields().unwrap();
         let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.next().unwrap() {
+        while let Some(field) = fields.try_next().unwrap() {
             f(unsafe { super::Field::new(field, self.value) })
         }
     }
 }
 
-impl<'dwarf, 'value, R> ops::Deref for Struct<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> ops::Deref for Struct<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -42,22 +43,19 @@ where
     }
 }
 
-impl<'dwarf, 'value, R> fmt::Debug for Struct<'dwarf, 'value, R>
+impl<'value, 'dwarf, R> fmt::Display for Struct<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Some(struct_name) = (match self.name() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        }) else {
-            panic!("field does not have a name");
+        let mut debug_struct = match self.name() {
+            Ok(Some(type_name)) => match type_name.to_string_lossy() {
+                Ok(type_name) => f.debug_struct(&type_name),
+                Err(err) => panic!("reader error: {}", err),
+            },
+            Ok(None) => panic!("type does not have a name"),
+            Err(err) => panic!("reader error: {}", err),
         };
-        let struct_name = match struct_name.to_string_lossy() {
-            Ok(name) => name,
-            Err(err) => panic!("{:?}", err),
-        };
-        let mut debug_struct = f.debug_struct(&struct_name);
         self.fields(|field| {
             let Some(field_name) = (match field.name() {
                 Ok(name) => name,
@@ -73,7 +71,7 @@ where
                 Ok(value) => value,
                 Err(err) => panic!("{:?}", err),
             };
-            debug_struct.field(&field_name, &field_value);
+            debug_struct.field(&field_name, &crate::DebugDisplay(field_value));
         });
         debug_struct.finish()
     }

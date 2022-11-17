@@ -1,5 +1,5 @@
 /// Variants of an [enum][super::Enum].
-/// 
+///
 /// Call [`iter`][Self::iter] to iterate over variants.
 pub struct Variants<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -47,7 +47,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Produces the next variant, if any.
-    pub fn next(&mut self) -> Result<Option<super::Variant<'dwarf, R>>, crate::Error> {
+    pub fn try_next(&mut self) -> Result<Option<super::Variant<'dwarf, R>>, crate::Error> {
         loop {
             let Some(next) = self.iter.next()? else { return Ok(None) };
             let entry = next.entry();
@@ -88,6 +88,19 @@ where
                     entry.offset()
                 ),
             }
+        }
+    }
+}
+
+impl<'dwarf, 'tree, R: crate::gimli::Reader<Offset = usize>> Iterator
+    for VariantsIter<'dwarf, 'tree, R>
+{
+    type Item = super::Variant<'dwarf, R>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.try_next() {
+            Ok(next) => next,
+            Err(err) => panic!("could not read next variant: {}", err),
         }
     }
 }

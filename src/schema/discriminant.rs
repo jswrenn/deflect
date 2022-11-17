@@ -104,7 +104,7 @@ where
         }
     }
 }
-
+/*
 impl<'a, 'dwarf, R> From<(&'a super::Atom<'dwarf, R>, u64)> for DiscriminantValue
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -121,3 +121,4 @@ where
         }
     }
 }
+*/

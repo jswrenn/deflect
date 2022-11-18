@@ -138,7 +138,6 @@ impl dyn Reflect {
             ))?;
 
         let unit = ctx.find_dwarf_unit(symbol_addr as u64).unwrap();
-        println!("{:x?}", unit.header.offset());
 
         let mut ty = None;
         let mut tree = unit.entries_tree(Some(dw_die_offset))?;
@@ -477,31 +476,5 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-struct DebugDwarf<'dwarf, 'entry, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    dwarf: &'dwarf crate::gimli::Dwarf<R>,
-    unit: &'dwarf crate::gimli::Unit<R, usize>,
-    entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-}
-
-impl<'dwarf, 'entry, R> DebugDwarf<'dwarf, 'entry, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn new(dwarf: &'dwarf crate::gimli::Dwarf<R>, unit: &'dwarf crate::gimli::Unit<R, usize>, entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>) -> Self { Self { dwarf, unit, entry } }
-}
-
-impl<'dwarf, 'entry, R> fmt::Debug for DebugDwarf<'dwarf, 'entry, R>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        debug::inspect_entry(f, self.entry, self.dwarf, self.unit, 0).unwrap();
-        Ok(())
     }
 }

@@ -83,8 +83,12 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_tuple = f.debug_tuple(std::any::type_name::<Self>());
-        debug_tuple.field(&crate::DebugDwarf::new(self.dwarf, self.unit, &self.entry));
+        let mut debug_tuple = f.debug_tuple("deflect::schema::Atom");
+        debug_tuple.field(&crate::debug::DebugEntry::new(
+            self.dwarf,
+            self.unit,
+            &self.entry,
+        ));
         debug_tuple.finish()
     }
 }

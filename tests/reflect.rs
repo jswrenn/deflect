@@ -10,7 +10,6 @@ where
     }
 }
 
-
 #[test]
 fn phantom_data() -> Result<(), deflect::Error> {
     use std::marker::PhantomData;
@@ -51,6 +50,7 @@ fn braced_struct() -> Result<(), deflect::Error> {
     let context = deflect::current_exe_debuginfo();
     let value = erased.reflect(&context)?;
     assert_eq!(value.to_string(), "BracedStruct { foo: 42 }");
+    println!("{:#}", DisplayDebug(&value));
     Ok(())
 }
 
@@ -64,8 +64,6 @@ mod primitive {
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
         assert_eq!(n.to_string(), value.to_string());
-        println!("{:?}", DisplayDebug(&value).to_string());
-        //assert_eq!(DisplayDebug(&value).to_string(), n.to_string());
         assert!(ptr::eq(
             &n,
             <&_>::try_from(value).expect("failed to downcast")

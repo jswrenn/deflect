@@ -59,10 +59,10 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_struct = f.debug_struct(std::any::type_name::<Self>());
+        let mut debug_struct = f.debug_struct("deflect::value::Enum");
         debug_struct.field("schema", &self.schema);
         debug_struct.field("value", &self.value);
-        Ok(())
+        debug_struct.finish()
     }
 }
 

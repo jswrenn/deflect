@@ -78,7 +78,6 @@ where
             crate::schema::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
             crate::schema::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
             crate::schema::Type::Function(r#type) => Self::Function(r#type),
-            _ => todo!(),
         }
     }
 }

@@ -37,7 +37,7 @@ type Byte = MaybeUninit<u8>;
 type Bytes<'value> = &'value [Byte];
 
 type Addr2LineReader = EndianReader<RunTimeEndian, Rc<[u8]>>;
-pub type Context = addr2line::Context<Addr2LineReader>;
+type Context = addr2line::Context<Addr2LineReader>;
 
 /// A source of debug info that can be trusted to correspond to the current executable.
 pub unsafe trait DebugInfo {
@@ -87,6 +87,7 @@ pub fn current_exe_debuginfo() -> CurrentExeContext {
     }
 }
 
+/// A reflectable type.
 pub trait Reflect {
     /// Produces the symbol address of itself.
     #[inline(never)]
@@ -104,10 +105,10 @@ impl<T> Reflect for T {}
 
 impl dyn Reflect {
     /// Produces a reflected `Value` of `&self`.
-    pub fn reflect<'value, 'dbginfo, D: DebugInfo>(
+    pub fn reflect<'value, 'dwarf, D: DebugInfo>(
         &'value self,
-        debug_info: &'dbginfo D,
-    ) -> Result<Value<'value, 'dbginfo, D::Reader>, Error> {
+        debug_info: &'dwarf D,
+    ) -> Result<Value<'value, 'dwarf, D::Reader>, Error> {
         let context = debug_info.context();
         let (unit, offset) = self.dw_unit_and_die_of(context)?;
         let entry = unit.entry(offset)?;
@@ -245,84 +246,6 @@ impl From<crate::gimli::Error> for ErrorKind {
     }
 }
 
-/// Produces the DWARF unit and entry offset for the DIE of `T`.
-fn dw_unit_and_die_of<'ctx, T: ?Sized, R>(
-    ctx: &'ctx addr2line::Context<R>,
-) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::Error>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    /// Produces the symbol address of itself.
-    #[inline(never)]
-    fn symbol_addr<T: ?Sized>() -> Option<*mut c_void> {
-        let ip = (symbol_addr::<T> as usize + 1) as *mut c_void;
-        let mut symbol_addr = None;
-        backtrace::resolve(ip, |symbol| {
-            symbol_addr = symbol.addr();
-        });
-        symbol_addr
-    }
-
-    let Some(symbol_addr) = symbol_addr::<T>() else {
-        return Err(ErrorKind::MakeAMoreSpecificVariant("Could not find symbol address for `symbol_addr::<T>`.").into())
-    };
-
-    let dw_die_offset = ctx
-        .find_frames(symbol_addr as u64)?
-        .next()?
-        .and_then(|f| f.dw_die_offset)
-        .ok_or(ErrorKind::MakeAMoreSpecificVariant(
-            "Could not find debug info for `symbol_addr::<T>`.",
-        ))?;
-
-    let unit = ctx.find_dwarf_unit(symbol_addr as u64).unwrap();
-
-    let mut ty = None;
-    let mut tree = unit.entries_tree(Some(dw_die_offset))?;
-    let mut children = tree.root()?.children();
-
-    while let Some(child) = children.next()? {
-        if ty.is_none() && child.entry().tag() == crate::gimli::DW_TAG_template_type_parameter {
-            ty = Some(get_type(child.entry())?);
-            break;
-        }
-    }
-
-    let ty = ty.ok_or(ErrorKind::MakeAMoreSpecificVariant(
-        "Could not find parameter type entry",
-    ))?;
-
-    Ok((unit, ty))
-}
-
-pub fn reflect<'ctx, 'value, T: ?Sized, R>(
-    ctx: &'ctx addr2line::Context<R>,
-    value: &'value T,
-) -> Result<value::Value<'value, 'ctx, R>, Error>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    let r#type = reflect_type::<T, _>(ctx)?;
-    let value = slice_from_raw_parts(value as *const T as *const Byte, mem::size_of_val(value));
-    let value = unsafe { &*value };
-    Ok(unsafe { value::Value::with_type(r#type, value) })
-}
-
-pub fn reflect_type<'ctx, T: ?Sized, R>(
-    ctx: &'ctx addr2line::Context<R>,
-) -> Result<Type<'ctx, R>, Error>
-where
-    R: crate::gimli::Reader<Offset = usize>,
-{
-    let (unit, offset) = dw_unit_and_die_of::<T, _>(ctx)?;
-
-    let _tree = unit.entries_tree(Some(offset))?;
-    //debug::inspect_tree(&mut tree, ctx.dwarf(), unit);
-
-    let die = unit.entry(offset).unwrap();
-    Type::from_die(ctx.dwarf(), unit, die)
-}
-
 fn current_binary() -> Option<std::fs::File> {
     let file = std::fs::File::open(std::env::current_exe().unwrap()).ok()?;
     Some(file)
@@ -357,12 +280,6 @@ fn get<R: crate::gimli::Reader<Offset = usize>>(
     entry
         .attr_value(attr)?
         .ok_or(ErrorKind::MissingAttr { attr })
-}
-
-fn get_data_member_location<R: crate::gimli::Reader<Offset = usize>>(
-    entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<AttributeValue<R>, ErrorKind> {
-    get(entry, crate::gimli::DW_AT_data_member_location)
 }
 
 pub(crate) fn get_size<R: crate::gimli::Reader<Offset = usize>>(

@@ -1,7 +1,7 @@
 use std::fmt;
 
 mod atom;
-mod discriminant;
+mod data;
 mod r#enum;
 mod field;
 mod fields;
@@ -14,7 +14,7 @@ mod variant;
 mod variants;
 
 pub use atom::Atom;
-pub use discriminant::{Discriminant, DiscriminantValue};
+pub use data::Data;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;

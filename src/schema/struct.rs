@@ -25,18 +25,21 @@ where
         Ok(Self { dwarf, unit, entry })
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
-    pub fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Struct`'s debuginfo belongs to.
+    #[allow(dead_code)]
+    pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
-    /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
-    pub fn unit(&self) -> &crate::gimli::Unit<R, usize> {
+    /// The DWARF [unit][crate::gimli::Unit] that this `Struct`'s debuginfo belongs to.
+    #[allow(dead_code)]
+    pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
-    pub fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
+    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Struct` abstracts over.
+    #[allow(dead_code)]
+    pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
 

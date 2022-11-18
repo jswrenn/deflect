@@ -10,7 +10,7 @@ where
     dwarf: &'dwarf crate::gimli::Dwarf<R>,
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    discriminant_value: Option<super::discriminant::DiscriminantValue>,
+    discriminant_val: Option<super::Data>,
 }
 
 impl<'value, 'dwarf, R> Variant<'dwarf, R>
@@ -21,27 +21,30 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-        discriminant_value: Option<super::discriminant::DiscriminantValue>,
+        discriminant_val: Option<super::Data>,
     ) -> Self {
         Self {
             dwarf,
             unit,
             entry,
-            discriminant_value,
+            discriminant_val,
         }
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Variant`'s debuginfo belongs to.
+    #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
-    /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
+    /// The DWARF [unit][crate::gimli::Unit] that this `Variant`'s debuginfo belongs to.
+    #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
+    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Variant` abstracts over.
+    #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
@@ -65,8 +68,8 @@ where
         crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
-    pub fn discriminant_value(&self) -> Option<super::discriminant::DiscriminantValue> {
-        self.discriminant_value
+    pub fn discriminant_value(&self) -> &Option<super::Data> {
+        &self.discriminant_val
     }
 
     /// The fields of this variant.

@@ -27,8 +27,8 @@ use std::{
 };
 
 mod debug;
-mod schema;
-mod r#value;
+pub mod schema;
+pub mod r#value;
 
 pub use r#schema::Type;
 pub use r#value::Value;
@@ -51,14 +51,6 @@ pub struct CurrentExeContext {
 }
 
 pub fn current_exe_debuginfo() -> CurrentExeContext {
-    impl ops::Deref for CurrentExeContext {
-        type Target = addr2line::Context<Addr2LineReader>;
-
-        fn deref(&self) -> &Self::Target {
-            self.context.as_ref()
-        }
-    }
-
     unsafe impl DebugInfo for CurrentExeContext {
         type Reader = Addr2LineReader;
 
@@ -234,6 +226,8 @@ pub enum ErrorKind {
     MissingAttr { attr: crate::gimli::DwAt },
     #[error("die did not have the child {tag}")]
     MissingChild { tag: crate::gimli::DwTag },
+    #[error("unit did not have entry at offset=0x{offset:x}", offset = .offset.0)]
+    MissingEntry { offset: crate::gimli::UnitOffset },
     #[error("{0}")]
     Gimli(crate::gimli::Error),
     #[error("{0}")]
@@ -357,7 +351,7 @@ fn get_file<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
 fn get_attr_ref<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     name: crate::gimli::DwAt,
-) -> Result<Option<UnitOffset>, anyhow::Error> {
+) -> Result<Option<UnitOffset>, Error> {
     if let Some(attr) = entry.attr(name)? {
         if let AttributeValue::UnitRef(offset) = attr.value() {
             return Ok(Some(offset));

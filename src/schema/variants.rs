@@ -55,7 +55,7 @@ where
                 crate::gimli::DW_TAG_variant => {
                     let discriminant_value = entry
                         .attr_value(crate::gimli::DW_AT_discr_value)?
-                        .map(|value| value.into());
+                        .map(|value| value.try_into().unwrap());
 
                     let mut entry = next.children();
                     let entry = entry.next()?.ok_or(crate::ErrorKind::MissingChild {
@@ -72,7 +72,7 @@ where
                 crate::gimli::DW_TAG_enumerator => {
                     let discriminant_value = entry
                         .attr_value(crate::gimli::DW_AT_discr_value)?
-                        .map(|value| value.into());
+                        .map(|value| value.try_into().unwrap());
 
                     return Ok(Some(super::Variant::new(
                         self.dwarf,

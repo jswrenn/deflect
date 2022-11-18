@@ -10,8 +10,9 @@ where
     dwarf: &'dwarf crate::gimli::Dwarf<R>,
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    discr_type_offset: crate::gimli::UnitOffset,
     name: R,
-    discriminant: super::Discriminant<'dwarf, R>,
+    location: super::Offset<'dwarf, R>,
 }
 
 impl<'dwarf, R> Enum<'dwarf, R>
@@ -26,14 +27,16 @@ where
     ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_enumeration_type)?;
         let name = crate::get_name(&entry, dwarf, unit)?;
-        let discriminant = super::Discriminant::from_dw_tag_enumeration_type(dwarf, unit, &entry)?;
+        let discr_type_offset = crate::get_type(&entry)?;
+        let location = super::Offset::zero(unit);
 
         Ok(Self {
             dwarf,
             unit,
             entry,
+            discr_type_offset,
             name,
-            discriminant,
+            location,
         })
     }
 
@@ -59,33 +62,54 @@ where
             }
         }
 
-        let variant_part = variant_part.ok_or(crate::ErrorKind::MissingChild {
+        let dw_tag_variant_part = variant_part.ok_or(crate::ErrorKind::MissingChild {
             tag: crate::gimli::DW_TAG_variant_part,
         })?;
 
-        let discriminant =
-            super::Discriminant::from_dw_tag_variant_part(dwarf, unit, &variant_part)?;
+        let dw_at_discr = crate::get_attr_ref(&dw_tag_variant_part, crate::gimli::DW_AT_discr)?.ok_or(
+            crate::ErrorKind::MissingAttr {
+                attr: crate::gimli::DW_AT_discr,
+            },
+        )?;
+
+        let dw_tag_member = unit
+            .entry(dw_at_discr)
+            .or(Err(crate::ErrorKind::MissingEntry {
+                offset: dw_at_discr,
+            }))?;
+
+        let discr_type_offset = crate::get_type(&dw_tag_member)?;
+
+        let location = super::Offset::from_die(unit, &dw_tag_member)?.ok_or(
+            crate::ErrorKind::MissingAttr {
+                attr: crate::gimli::DW_AT_data_member_location,
+            },
+        )?;
 
         Ok(Self {
             dwarf,
             unit,
             entry,
+            discr_type_offset,
             name,
-            discriminant,
+            location,
         })
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this debuginfo entry belongs to.
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Enum`'s debuginfo belongs to.
+    #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
-    /// The DWARF [unit][gimli::Unit] that this debuginfo entry belongs to.
+    /// The DWARF [unit][crate::gimli::Unit] that this `Enum`'s debuginfo belongs to.
+    #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this type abstracts over.
+    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Enum` abstracts over.
+    #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
     }
@@ -96,8 +120,14 @@ where
     }
 
     /// The discriminant of this type.
-    pub fn discriminant(&self) -> &super::Discriminant<R> {
-        &self.discriminant
+    pub fn discriminant_type(&self) -> Result<super::Type::<'dwarf, R>, crate::Error> {
+        let entry = self.unit.entry(self.discr_type_offset)?;
+        super::Type::from_die(self.dwarf, self.unit, entry)
+    }
+
+    /// The discriminant of this type.
+    pub fn discriminant_location(&self) -> &super::Offset<R> {
+        &self.location
     }
 
     /// Variants of this type.

@@ -25,8 +25,7 @@ where
         let mut default = None;
         let mut matched = None;
 
-        let discr = self.discriminant();
-        let discr_loc = discr.location().clone();
+        let discr_loc = self.discriminant_location().clone();
         let enum_addr = self.value.as_ptr() as *const () as u64;
         let discr_addr = discr_loc.address(enum_addr).unwrap();
 
@@ -35,12 +34,12 @@ where
 
         while let Some(variant) = variants.try_next()? {
             if let Some(discriminant) = variant.discriminant_value() {
-                use crate::schema::DiscriminantValue;
+                use crate::schema::Data;
                 let matches = match discriminant {
-                    DiscriminantValue::U8(v) => (unsafe { *(discr_addr as *const u8) } == v),
-                    DiscriminantValue::U16(v) => (unsafe { *(discr_addr as *const u16) } == v),
-                    DiscriminantValue::U32(v) => (unsafe { *(discr_addr as *const u32) } == v),
-                    DiscriminantValue::U64(v) => (unsafe { *(discr_addr as *const u64) } == v),
+                    Data::u8(v) => (unsafe { *(discr_addr as *const u8) } == *v),
+                    Data::u16(v) => (unsafe { *(discr_addr as *const u16) } == *v),
+                    Data::u32(v) => (unsafe { *(discr_addr as *const u32) } == *v),
+                    Data::u64(v) => (unsafe { *(discr_addr as *const u64) } == *v),
                 };
                 if matches {
                     matched = Some(variant.clone());

@@ -25,8 +25,8 @@ where
     /// Produces an iterator over variants.
     pub fn iter(&mut self) -> Result<VariantsIter<'dwarf, '_, R>, crate::Error> {
         Ok(VariantsIter {
-            dwarf: &self.dwarf,
-            unit: &self.unit,
+            dwarf: self.dwarf,
+            unit: self.unit,
             iter: self.tree.root()?.children(),
         })
     }
@@ -63,8 +63,8 @@ where
                     })?;
                     let entry = self.unit.entry(crate::get_type(entry.entry())?)?;
                     return Ok(Some(super::Variant::new(
-                        &self.dwarf,
-                        &self.unit,
+                        self.dwarf,
+                        self.unit,
                         entry,
                         discriminant_value,
                     )));
@@ -75,8 +75,8 @@ where
                         .map(|value| value.into());
 
                     return Ok(Some(super::Variant::new(
-                        &self.dwarf,
-                        &self.unit,
+                        self.dwarf,
+                        self.unit,
                         entry.clone(),
                         discriminant_value,
                     )));

@@ -1,5 +1,5 @@
 use super::Name;
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// A Rust-like `struct`.
 pub struct Struct<'dwarf, R: crate::gimli::Reader<Offset = usize>>

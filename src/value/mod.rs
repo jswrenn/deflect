@@ -1,4 +1,4 @@
-use std::{fmt, marker::PhantomData};
+use std::fmt;
 
 mod atom;
 mod r#enum;
@@ -17,8 +17,6 @@ pub use r#enum::Enum;
 pub use r#ref::Ref;
 pub use r#struct::Struct;
 pub use variant::Variant;
-
-use crate::DowncastErr;
 
 #[allow(non_camel_case_types)]
 #[non_exhaustive]

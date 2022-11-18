@@ -71,8 +71,8 @@ pub fn current_exe_debuginfo() -> CurrentExeContext {
         pub static CONTEXT: Rc<Context> = {
             static MMAP: LazyLock<memmap2::Mmap> = LazyLock::new(|| {
                 let file = current_binary().unwrap();
-                let mmap = unsafe { memmap2::Mmap::map(&file).unwrap() };
-                mmap
+
+                unsafe { memmap2::Mmap::map(&file).unwrap() }
             });
 
             static OBJECT: LazyLock<object::File<'static, &'static [u8]>> = LazyLock::new(|| {
@@ -316,7 +316,7 @@ where
 {
     let (unit, offset) = dw_unit_and_die_of::<T, _>(ctx)?;
 
-    let mut tree = unit.entries_tree(Some(offset))?;
+    let _tree = unit.entries_tree(Some(offset))?;
     //debug::inspect_tree(&mut tree, ctx.dwarf(), unit);
 
     let die = unit.entry(offset).unwrap();
@@ -392,7 +392,7 @@ pub(crate) fn get_type_opt<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     entry: &'dwarf crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, ErrorKind> {
     let maybe_type = entry.attr_value(crate::gimli::DW_AT_type)?;
-    Ok(if let Some(r#type) = maybe_type {
+    Ok(if let Some(_type) = maybe_type {
         if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
             Some(unit.entry(offset)?)
         } else {
@@ -407,7 +407,7 @@ pub(crate) fn get_type<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<UnitOffset, ErrorKind> {
     if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
-        return Ok(offset);
+        Ok(offset)
     } else {
         Err(ErrorKind::ValueMismatch)
     }

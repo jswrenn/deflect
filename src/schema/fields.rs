@@ -25,8 +25,8 @@ where
     /// Produces an iterator over fields.
     pub fn iter(&mut self) -> Result<FieldsIter<'dwarf, '_, R>, crate::Error> {
         Ok(FieldsIter {
-            dwarf: &self.dwarf,
-            unit: &self.unit,
+            dwarf: self.dwarf,
+            unit: self.unit,
             iter: self.tree.root()?.children(),
         })
     }
@@ -55,8 +55,8 @@ where
                 continue;
             }
             return Ok(Some(super::Field::from_dw_tag_member(
-                &self.dwarf,
-                &self.unit,
+                self.dwarf,
+                self.unit,
                 entry.clone(),
             )?));
         }

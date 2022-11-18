@@ -1,6 +1,4 @@
-use super::Value;
-use crate::DowncastErr;
-use std::{fmt, marker::PhantomData, ops};
+use std::{fmt, ops};
 
 /// A primitive, non-compound value, like `u8` or `bool`.
 pub struct Atom<'value, 'dwarf, T, R>
@@ -21,7 +19,7 @@ where
         schema: crate::schema::Atom<'dwarf, T, R>,
     ) -> Self {
         let value = &value[..std::mem::size_of::<T>()];
-        let (&[], &[ref value], &[]) = value.align_to() else { panic!() };
+        let (&[], [value], &[]) = value.align_to() else { panic!() };
         Self { schema, value }
     }
 
@@ -64,6 +62,6 @@ where
     type Target = T;
 
     fn deref(&self) -> &'value Self::Target {
-        &self.value
+        self.value
     }
 }

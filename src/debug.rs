@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    fmt::{self, Formatter, Pointer},
+    fmt::{self, Formatter},
 };
 
 pub(crate) fn inspect<R>(
@@ -53,7 +53,7 @@ pub(crate) fn inspect_entry<R>(
     entry: &crate::gimli::DebuggingInformationEntry<R, usize>,
     dwarf: &crate::gimli::Dwarf<R>,
     unit: &crate::gimli::Unit<R>,
-    depth: isize,
+    _depth: isize,
 ) -> Result<(), anyhow::Error>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -74,7 +74,7 @@ where
                         let val = rustc_demangle::demangle(&val);
                         debug_struct.field(name, &val);
                     }
-                    name @ _ => {
+                    name => {
                         debug_struct.field(name, &val);
                     }
                 }
@@ -194,11 +194,9 @@ where
                     &dw_at_to_string(name),
                     &DebugExpression::new(self.unit, expression),
                 );
-            } if let Some(value) = attr.udata_value() {
-                debug_struct.field(
-                    &dw_at_to_string(name),
-                    &value,
-                );
+            }
+            if let Some(value) = attr.udata_value() {
+                debug_struct.field(&dw_at_to_string(name), &value);
             } else if let crate::gimli::AttributeValue::FileIndex(file_index) = value {
                 if let Ok(value_as_string) = crate::fi_to_string(file_index, self.unit) {
                     debug_struct.field(&dw_at_to_string(name), &value_as_string);

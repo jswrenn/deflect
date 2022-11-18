@@ -21,7 +21,7 @@ where
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        let mut tree = unit.entries_tree(Some(entry.offset()))?;
+        let _tree = unit.entries_tree(Some(entry.offset()))?;
         //crate::debug::inspect_tree(&mut tree, dwarf, unit);
         crate::check_tag(&entry, crate::gimli::DW_TAG_member)?;
         Ok(Self { dwarf, unit, entry })
@@ -59,7 +59,7 @@ where
 
     /// The offset at which this field occurs.
     pub fn offset(&'dwarf self) -> Result<Option<Offset<'dwarf, R>>, crate::Error> {
-        Ok(Offset::from_die(self.unit(), self.entry())?)
+        Offset::from_die(self.unit(), self.entry())
     }
 
     /// The type of the field.

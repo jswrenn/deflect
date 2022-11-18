@@ -1,5 +1,5 @@
 use super::Name;
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// A function type.
 pub struct Function<'dwarf, R: crate::gimli::Reader<Offset = usize>>

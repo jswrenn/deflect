@@ -16,14 +16,14 @@ where
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        crate::check_tag(&entry, crate::gimli::DW_TAG_enumeration_type)?;
+        crate::check_tag(entry, crate::gimli::DW_TAG_enumeration_type)?;
 
-        let r#type = crate::get_type(&entry)
+        let r#type = crate::get_type(entry)
             .map(|offset| unit.entry(offset).unwrap())
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .unwrap();
 
-        let align = crate::get_align(&entry)?.unwrap();
+        let align = crate::get_align(entry)?.unwrap();
         let location = super::Offset::zero(unit);
 
         Ok(Self {
@@ -43,7 +43,7 @@ where
     {
         assert_eq!(entry.tag(), crate::gimli::DW_TAG_variant_part);
 
-        let dw_tag_member = crate::get_attr_ref(&entry, crate::gimli::DW_AT_discr)
+        let dw_tag_member = crate::get_attr_ref(entry, crate::gimli::DW_AT_discr)
             .unwrap()
             .and_then(|offset| unit.entry(offset).ok())
             .unwrap();
@@ -53,7 +53,7 @@ where
             .map(|entry| super::DiscriminantType::from_die(dwarf, unit, entry))
             .expect("no entry");
 
-        let align = crate::get_align(&entry).unwrap().unwrap_or(1);
+        let align = crate::get_align(entry).unwrap().unwrap_or(1);
 
         let location = super::Offset::from_die(unit, &dw_tag_member)?.ok_or(
             crate::ErrorKind::MissingAttr {

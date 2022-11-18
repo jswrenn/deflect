@@ -55,7 +55,7 @@ fn braced_struct() -> Result<(), deflect::Error> {
 }
 
 mod primitive {
-    use super::*;
+
     use std::{error::Error, ptr};
 
     #[quickcheck_macros::quickcheck]

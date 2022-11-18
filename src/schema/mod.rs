@@ -160,8 +160,8 @@ where
             crate::gimli::DW_TAG_subroutine_type => {
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
             }
-            otherwise @ _ => {
-                let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
+            otherwise => {
+                let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 //let _ = crate::debug::inspect_tree(&mut tree, dwarf, unit);
                 panic!("{}", otherwise.to_string())
             }

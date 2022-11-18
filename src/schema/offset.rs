@@ -61,7 +61,7 @@ where
                             size_in_bits: None,
                             bit_offset: None,
                             location: crate::gimli::Location::Address { address },
-                        }] => return Ok(address),
+                        }] => Ok(address),
                         _ => todo!("Unsupported evaluation result {:?}", result,),
                     }
                 } else {

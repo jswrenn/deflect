@@ -118,7 +118,7 @@ where
             }
             _ => todo!(),
         };
-        Ok(super::Variants::from_tree(&self.dwarf, &self.unit, tree))
+        Ok(super::Variants::from_tree(self.dwarf, self.unit, tree))
     }
 
     /// The size of this type, in bytes.
@@ -166,9 +166,9 @@ where
             f.write_str(" ")?;
         }
 
-        let mut debug_struct = f.debug_tuple(&self.name().unwrap());
+        let _debug_struct = f.debug_tuple(&self.name().unwrap());
         let mut variants = self.variants().unwrap();
-        let mut variants = variants.iter().unwrap();
+        let variants = variants.iter().unwrap();
 
         variants
             .format(if f.alternate() { ",\n    " } else { ", " })

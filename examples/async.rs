@@ -100,7 +100,7 @@ fn poll_once<F: Future<Output = u8>>(fut: Pin<&mut F>) -> Poll<u8> {
     let counter = Arc::new(Counter {
         wakes: AtomicUsize::new(0),
     });
-    let waker = ArcWake::into_waker(counter.clone());
+    let waker = ArcWake::into_waker(counter);
     let mut cx = Context::from_waker(&waker);
     fut.as_mut().poll(&mut cx)
 }
@@ -147,12 +147,12 @@ async fn await3_level5() -> u8 {
     z
 }
 
-fn poll<F: Future>(f: F) -> impl Reflect {
+fn poll<F: Future>(_f: F) -> impl Reflect {
     <F as Future>::poll
 }
 
 fn main() -> Result<(), deflect::Error> {
-    let mut task = await3_level5();
+    let task = await3_level5();
     //let _ = poll_once(task.as_mut());
 
     let erased: &dyn Reflect = &task;

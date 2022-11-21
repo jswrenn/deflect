@@ -278,6 +278,13 @@ fn get<R: crate::gimli::Reader<Offset = usize>>(
 
 pub(crate) fn get_size<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
+) -> Result<u64, ErrorKind> {
+    let size = get(entry, crate::gimli::DW_AT_byte_size)?;
+    size.udata_value().ok_or(ErrorKind::ValueMismatch)
+}
+
+pub(crate) fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
+    entry: &crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<Option<u64>, ErrorKind> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
     if let Some(size) = maybe_size {
@@ -298,9 +305,20 @@ pub(crate) fn get_align<R: crate::gimli::Reader<Offset = usize>>(
     }
 }
 
-pub(crate) fn get_type_opt<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+pub(crate) fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     unit: &'dwarf crate::gimli::Unit<R, usize>,
-    entry: &'dwarf crate::gimli::DebuggingInformationEntry<R>,
+    entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+) -> Result<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>, ErrorKind> {
+    if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
+        Ok(unit.entry(offset)?)
+    } else {
+        Err(ErrorKind::ValueMismatch)
+    }
+}
+
+pub(crate) fn get_type_opt<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+    unit: &'dwarf crate::gimli::Unit<R, usize>,
+    entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 ) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, ErrorKind> {
     let maybe_type = entry.attr_value(crate::gimli::DW_AT_type)?;
     Ok(if let Some(_type) = maybe_type {
@@ -314,8 +332,8 @@ pub(crate) fn get_type_opt<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     })
 }
 
-pub(crate) fn get_type<R: crate::gimli::Reader<Offset = usize>>(
-    entry: &crate::gimli::DebuggingInformationEntry<R>,
+pub(crate) fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+    entry: &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 ) -> Result<UnitOffset, ErrorKind> {
     if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
         Ok(offset)

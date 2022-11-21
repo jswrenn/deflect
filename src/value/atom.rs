@@ -18,8 +18,14 @@ where
         value: crate::Bytes<'value>,
         schema: crate::schema::Atom<'dwarf, T, R>,
     ) -> Self {
-        let value = &value[..std::mem::size_of::<T>()];
-        let (&[], [value], &[]) = value.align_to() else { panic!() };
+        let size = std::mem::size_of::<T>();
+        let value = &value[..size];
+        let value = if size != 0 {
+            let (&[], [value], &[]) = value.align_to() else { panic!() };
+            value
+        } else {
+            &*(value.as_ptr() as *const _)
+        };
         Self { schema, value }
     }
 

@@ -17,3 +17,6 @@ thiserror = "1.0.37"
 itertools = "0.10.5"
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
+
+[dev-dependencies]
+colored-diff = "0.2.3"

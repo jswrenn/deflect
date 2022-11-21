@@ -22,17 +22,15 @@ where
 
     /// The value of this field.
     pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
-        let r#type = self
-            .r#type()
-            .transpose()
-            .ok_or(
-                crate::ErrorKind::MissingAttr {
-                    attr: crate::gimli::DW_AT_type,
-                }
-                .into(),
-            )
-            .flatten()?;
-        Ok(unsafe { super::Value::with_type(r#type, self.value) })
+        let r#type = self .r#type()?;
+        let offset = self
+            .offset()?
+            .ok_or(crate::ErrorKind::MissingAttr {
+                attr: crate::gimli::DW_AT_type,
+            })?
+            .address(0)? as usize;
+        let value = &self.value[offset..];
+        Ok(unsafe { super::Value::with_type(r#type, value) })
     }
 }
 

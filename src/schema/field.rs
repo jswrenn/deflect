@@ -2,6 +2,7 @@ use super::{Name, Offset, Type};
 use std::fmt;
 
 /// A field of a [struct][super::Struct] or [variant][super::Variant].
+#[derive(Clone)]
 pub struct Field<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -52,7 +53,7 @@ where
 
     /// The size of this field, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_size(self.entry())?)
+        Ok(crate::get_size_opt(self.entry())?)
     }
 
     /// The alignment of this field, in bytes.
@@ -66,13 +67,9 @@ where
     }
 
     /// The type of the field.
-    pub fn r#type(&'dwarf self) -> Result<Option<Type<'dwarf, R>>, crate::Error> {
-        let maybe_type = crate::get_type_opt(self.unit(), self.entry())?;
-        Ok(if let Some(r#type) = maybe_type {
-            Some(super::Type::from_die(self.dwarf, self.unit, r#type)?)
-        } else {
-            None
-        })
+    pub fn r#type(&self) -> Result<Type<'dwarf, R>, crate::Error> {
+        let r#type = crate::get_type_opt(self.unit, &self.entry)?.unwrap();
+        super::Type::from_die(self.dwarf, self.unit, r#type)
     }
 }
 

@@ -1,9 +1,8 @@
-use super::Name;
 use std::fmt;
 
-/// A function type.
+/// An array type.
 #[derive(Clone)]
-pub struct Function<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Array<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -12,7 +11,7 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'value, 'dwarf, R> Function<'dwarf, R>
+impl<'value, 'dwarf, R> Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -22,7 +21,7 @@ where
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        crate::check_tag(&entry, crate::gimli::DW_TAG_subroutine_type)?;
+        crate::check_tag(&entry, crate::gimli::DW_TAG_array_type)?;
         Ok(Self { dwarf, unit, entry })
     }
 
@@ -44,18 +43,46 @@ where
         &self.entry
     }
 
-    /// The name of this type.
-    pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
-        Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+    /// The element type of this array.
+    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
+        super::Type::from_die(
+            self.dwarf,
+            self.unit,
+            self.unit.entry(crate::get_type(&self.entry)?)?,
+        )
     }
+
+    /// The length of this array.
+    pub fn len(&self) -> Result<u64, crate::Error> {
+        let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
+        let root = tree.root()?;
+        let mut children = root.children();
+        let dw_tag_subrange_type = children.next()?.unwrap();
+        let dw_tag_subrange_type = dw_tag_subrange_type.entry();
+        crate::check_tag(dw_tag_subrange_type, crate::gimli::DW_TAG_subrange_type)?;
+        let dw_at_count = crate::get(dw_tag_subrange_type, crate::gimli::DW_AT_count)?;
+        let count = dw_at_count
+            .udata_value()
+            .ok_or(crate::ErrorKind::MissingAttr {
+                attr: crate::gimli::DW_AT_count,
+            })?;
+        Ok(count)
+    }
+
+    /// The size of this array, in bytes.
+    pub fn size(&self) -> Result<u64, crate::Error> {
+        let len = self.len()?;
+        let elt_size = self.elt()?.size()?;
+        Ok(len.checked_mul(elt_size).unwrap())
+    } 
 }
 
-impl<'dwarf, R> fmt::Debug for Function<'dwarf, R>
+impl<'dwarf, R> fmt::Debug for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_tuple = f.debug_tuple("deflect::schema::Function");
+        let mut debug_tuple = f.debug_tuple("deflect::schema::Array");
         debug_tuple.field(&crate::debug::DebugEntry::new(
             self.dwarf,
             self.unit,
@@ -65,17 +92,18 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Function<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: Can we get back function names?
+        /*// TODO: Can we get back function names?
         if let Some(name) = self.name().expect("gimli err") {
             let name = name.to_string_lossy().expect("gimli err");
             write!(f, "fn {name}<todo>(todo) -> (todo)")
         } else {
             write!(f, "fn ()<todo>(todo) -> (todo)")
-        }
+        }*/
+        Ok(())
     }
 }

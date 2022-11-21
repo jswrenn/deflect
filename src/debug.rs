@@ -42,7 +42,7 @@ where
 }
 
 // -----
-pub(super) struct DebugEntry<'entry, 'dwarf, R>
+pub(crate) struct DebugEntry<'entry, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -94,9 +94,10 @@ where
                     &DebugExpression::new(self.unit, expression),
                 );
             }
-            if let Some(value) = attr.udata_value() {
+            /*if let Some(value) = attr.udata_value() {
                 debug_struct.field(&dw_at_to_string(name), &value);
-            } else if let crate::gimli::AttributeValue::FileIndex(file_index) = value {
+            } else*/
+            if let crate::gimli::AttributeValue::FileIndex(file_index) = value {
                 if let Ok(value_as_string) = crate::fi_to_string(file_index, self.unit) {
                     debug_struct.field(&dw_at_to_string(name), &value_as_string);
                 } else {

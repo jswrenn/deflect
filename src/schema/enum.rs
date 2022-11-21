@@ -3,6 +3,7 @@ use std::{borrow::Cow, fmt};
 use itertools::Itertools;
 
 /// A sum type; e.g., a Rust-style enum.
+#[derive(Clone)]
 pub struct Enum<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -66,11 +67,10 @@ where
             tag: crate::gimli::DW_TAG_variant_part,
         })?;
 
-        let dw_at_discr = crate::get_attr_ref(&dw_tag_variant_part, crate::gimli::DW_AT_discr)?.ok_or(
-            crate::ErrorKind::MissingAttr {
+        let dw_at_discr = crate::get_attr_ref(&dw_tag_variant_part, crate::gimli::DW_AT_discr)?
+            .ok_or(crate::ErrorKind::MissingAttr {
                 attr: crate::gimli::DW_AT_discr,
-            },
-        )?;
+            })?;
 
         let dw_tag_member = unit
             .entry(dw_at_discr)
@@ -120,7 +120,7 @@ where
     }
 
     /// The discriminant of this type.
-    pub fn discriminant_type(&self) -> Result<super::Type::<'dwarf, R>, crate::Error> {
+    pub fn discriminant_type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         let entry = self.unit.entry(self.discr_type_offset)?;
         super::Type::from_die(self.dwarf, self.unit, entry)
     }
@@ -132,6 +132,7 @@ where
 
     /// Variants of this type.
     pub fn variants(&self) -> Result<super::Variants<'dwarf, R>, crate::Error> {
+        let discriminant_type = self.discriminant_type()?;
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
         let tree = match self.entry.tag() {
@@ -146,13 +147,21 @@ where
                 }
                 self.unit.entries_tree(variant_part)?
             }
-            _ => todo!(),
+            _ => unimplemented!(
+                "unhandled enum representation: {:#?}",
+                crate::debug::DebugEntry::new(self.dwarf, self.unit, &self.entry)
+            ),
         };
-        Ok(super::Variants::from_tree(self.dwarf, self.unit, tree))
+        Ok(super::Variants::from_tree(
+            self.dwarf,
+            self.unit,
+            tree,
+            discriminant_type,
+        ))
     }
 
     /// The size of this type, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn size(&self) -> Result<u64, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 

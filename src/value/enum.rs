@@ -17,6 +17,8 @@ where
         schema: crate::schema::Enum<'dwarf, R>,
         value: crate::Bytes<'value>,
     ) -> Self {
+        let size = schema.size().unwrap() as usize;
+        let value = &value[..size];
         Self { schema, value }
     }
 
@@ -73,7 +75,7 @@ where
         f.write_str(&self.name().unwrap())?;
         f.write_str("::")?;
         self.variant()
-            .expect("Could not reflect into variant.")
+            .expect("could not reflect into variant")
             .fmt(f)
     }
 }

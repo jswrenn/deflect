@@ -1,7 +1,8 @@
 use deflect::Reflect;
 
+#[repr(u64)]
 enum TestCLikeEnum {
-    A,
+    A = 400,
     B,
     C,
 }

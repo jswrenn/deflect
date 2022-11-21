@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use deflect::Reflect;
+use std::error::Error;
 use std::sync::Arc;
 use std::task::{RawWaker, RawWakerVTable, Waker};
 
@@ -151,14 +152,29 @@ fn poll<F: Future>(_f: F) -> impl Reflect {
     <F as Future>::poll
 }
 
-fn main() -> Result<(), deflect::Error> {
-    let task = await3_level5();
-    //let _ = poll_once(task.as_mut());
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut task = Box::pin(await3_level5());
+    let mut i = 0;
+    loop {
+        let res = poll_once(task.as_mut());
+        let erased: &dyn Reflect = &task;
+        let context = deflect::current_exe_debuginfo();
 
-    let erased: &dyn Reflect = &task;
-    let context = deflect::current_exe_debuginfo();
-    let value = erased.reflect(&context)?;
-    println!("{value}");
+        let value = erased.reflect(&context)?;
+
+        print!("\x1B[2J\x1B[1;1H");
+        println!("STEP {i}");
+        println!("{value:#}");
+
+        if res.is_ready() {
+            break;
+        }
+
+        i += 1;
+
+        //std::io::stdin().read_line(&mut String::new()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 
     Ok(())
 }

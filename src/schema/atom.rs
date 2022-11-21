@@ -2,6 +2,7 @@ use super::Name;
 use std::{fmt, marker::PhantomData};
 
 /// A primitive, non-compound (i.e., "atomic") type, like [`u8`] or [`bool`].
+#[derive(Clone)]
 pub struct Atom<'dwarf, T, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -32,7 +33,7 @@ where
             Err(crate::ErrorKind::ValueMismatch)?;
         }
 
-        let size = crate::get_size(&entry)?.ok_or(crate::ErrorKind::MissingAttr {
+        let size = crate::get_size_opt(&entry)?.ok_or(crate::ErrorKind::MissingAttr {
             attr: crate::gimli::DW_AT_byte_size,
         })?;
 

@@ -19,15 +19,10 @@ where
         Self { schema, value }
     }
 
-    pub fn fields<F>(&self, mut f: F)
-    where
-        F: FnMut(super::field::Field<'value, 'dwarf, R>),
-    {
-        let mut fields = self.schema.fields().unwrap();
-        let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.try_next().unwrap() {
-            f(unsafe { super::Field::new(field, self.value) })
-        }
+    /// The fields of this variant.
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::Error> {
+        let fields = self.schema.fields()?;
+        Ok(super::Fields::new(fields, self.value))
     }
 }
 
@@ -42,7 +37,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Debug for Variant<'value, 'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for Variant<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -55,7 +50,9 @@ where
             Ok(None) => panic!("variant does not have a name"),
             Err(err) => panic!("reader error: {}", err),
         };
-        self.fields(|field| {
+        let mut fields = self.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.try_next().unwrap() {
             let Some(field_name) = (match field.name() {
                 Ok(name) => name,
                 Err(err) => panic!("{:?}", err),
@@ -71,7 +68,7 @@ where
                 Err(err) => panic!("{:?}", err),
             };
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));
-        });
+        }
         debug_struct.finish()
     }
 }

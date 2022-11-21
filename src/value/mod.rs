@@ -1,20 +1,24 @@
 use std::fmt;
 
+mod array;
 mod atom;
 mod r#enum;
 mod field;
 mod fields;
 mod function;
 mod r#ref;
+mod slice;
 mod r#struct;
 mod variant;
 
+pub use array::Array;
 pub use atom::Atom;
 pub use field::Field;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use r#enum::Enum;
 pub use r#ref::Ref;
+pub use slice::Slice;
 pub use r#struct::Struct;
 pub use variant::Variant;
 
@@ -41,10 +45,12 @@ where
     u128(Atom<'value, 'dwarf, u128, R>),
     usize(Atom<'value, 'dwarf, usize, R>),
     unit(Atom<'value, 'dwarf, (), R>),
+    Array(Array<'value, 'dwarf, R>),
+    Slice(Slice<'value, 'dwarf, R>),
     Struct(r#struct::Struct<'value, 'dwarf, R>),
     Enum(r#enum::Enum<'value, 'dwarf, R>),
     Ref(r#ref::Ref<'value, 'dwarf, R>),
-    Function(crate::schema::Function<'dwarf, R>),
+    Function(Function<'value, 'dwarf, R>),
 }
 
 impl<'value, 'dwarf, R> Value<'value, 'dwarf, R>
@@ -74,10 +80,12 @@ where
             crate::schema::Type::u128(schema) => Self::u128(Atom::new(value, schema)),
             crate::schema::Type::usize(schema) => Self::usize(Atom::new(value, schema)),
             crate::schema::Type::unit(schema) => Self::unit(Atom::new(value, schema)),
+            crate::schema::Type::Slice(schema) => Self::Slice(Slice::new(value, schema).unwrap()),
+            crate::schema::Type::Array(schema) => Self::Array(Array::new(value, schema).unwrap()),
             crate::schema::Type::Struct(r#type) => Self::Struct(Struct::new(r#type, value)),
             crate::schema::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
             crate::schema::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
-            crate::schema::Type::Function(r#type) => Self::Function(r#type),
+            crate::schema::Type::Function(r#type) => Self::Function(Function::new(value, r#type)),
         }
     }
 }
@@ -105,6 +113,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
+            Self::Array(v) => v.fmt(f),
+            Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Ref(v) => v.fmt(f),
@@ -136,6 +146,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(_) => f.write_str("()"),
+            Self::Slice(v) => v.fmt(f),
+            Self::Array(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Ref(v) => v.fmt(f),
@@ -143,6 +155,49 @@ where
         }
     }
 }
+
+/// Upcast a `Ref<'value, 'dwarf, R>` to a `Ref<'value, 'dwarf, R>`.
+impl<'value, 'dwarf, R> From<Ref<'value, 'dwarf, R>> for Value<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn from(atom: Ref<'value, 'dwarf, R>) -> Self {
+        Value::Ref(atom)
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Ref<'value, 'dwarf, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'a Ref<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::Ref(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::DowncastErr::new(value))
+        }
+    }
+}
+
+/// Attempt to downcast a `Value<'value, 'dwarf, R>` into a `Ref<'value, 'dwarf, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for Ref<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::DowncastErr<Value<'value, 'dwarf, R>, Self>;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::Ref(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::DowncastErr::new(value))
+        }
+    }
+}
+
 
 macro_rules! generate_primitive_conversions {
     ($($t:ident,)*) => {

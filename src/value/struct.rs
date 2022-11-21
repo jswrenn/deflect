@@ -20,15 +20,9 @@ where
     }
 
     /// The fields of this struct.
-    pub fn fields<F>(&self, mut f: F)
-    where
-        F: FnMut(super::Field<'value, 'dwarf, R>),
-    {
-        let mut fields = self.schema.fields().unwrap();
-        let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.try_next().unwrap() {
-            f(unsafe { super::Field::new(field, self.value) })
-        }
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::Error> {
+        let fields = self.schema.fields()?;
+        Ok(super::Fields::new(fields, self.value))
     }
 }
 
@@ -68,7 +62,9 @@ where
             Ok(None) => panic!("type does not have a name"),
             Err(err) => panic!("reader error: {}", err),
         };
-        self.fields(|field| {
+        let mut fields = self.fields().unwrap();
+        let mut fields = fields.iter().unwrap();
+        while let Some(field) = fields.try_next().unwrap() {
             let Some(field_name) = (match field.name() {
                 Ok(name) => name,
                 Err(err) => panic!("{:?}", err),
@@ -84,7 +80,7 @@ where
                 Err(err) => panic!("{:?}", err),
             };
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));
-        });
+        }
         debug_struct.finish()
     }
 }

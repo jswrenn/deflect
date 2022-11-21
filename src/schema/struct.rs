@@ -2,6 +2,7 @@ use super::Name;
 use std::fmt;
 
 /// A Rust-like `struct`.
+#[derive(Clone)]
 pub struct Struct<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -49,7 +50,7 @@ where
     }
 
     /// The size of this field, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn size(&self) -> Result<u64, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
@@ -97,8 +98,7 @@ where
         let mut fields = fields.iter().unwrap();
         while let Some(field) = fields.try_next().unwrap() {
             let field_type = match field.r#type() {
-                Ok(Some(field_type)) => field_type,
-                Ok(None) => panic!("field does not have a name"),
+                Ok(field_type) => field_type,
                 Err(err) => panic!("reader error: {err}"),
             };
             match field.name() {

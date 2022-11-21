@@ -62,10 +62,10 @@ where
                             bit_offset: None,
                             location: crate::gimli::Location::Address { address },
                         }] => Ok(address),
-                        _ => todo!("Unsupported evaluation result {:?}", result,),
+                        _ => unimplemented!("unsupported evaluation result {:?}", result,),
                     }
                 } else {
-                    todo!()
+                    unimplemented!("unsupported evaluation result");
                 }
             }
         }

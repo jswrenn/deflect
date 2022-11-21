@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone)]
 pub struct Ref<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -52,17 +53,13 @@ where
 
     /// The size of this type, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_size(self.entry())?)
+        Ok(crate::get_size_opt(self.entry())?)
     }
 
     /// The type of the referent.
-    pub fn r#type(&'dwarf self) -> Result<Option<super::Type<'dwarf, R>>, crate::Error> {
-        let maybe_type = crate::get_type_opt(self.unit(), self.entry())?;
-        Ok(if let Some(r#type) = maybe_type {
-            Some(super::Type::from_die(self.dwarf, self.unit, r#type)?)
-        } else {
-            None
-        })
+    pub fn r#type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
+        let r#type = crate::get_type_res(self.unit, &self.entry)?;
+        super::Type::from_die(self.dwarf, self.unit, r#type)
     }
 }
 

@@ -20,7 +20,7 @@ where
     }
 
     /// The fields of this struct.
-    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::err::Error> {
         let fields = self.schema.fields()?;
         Ok(super::Fields::new(fields, self.value))
     }
@@ -54,31 +54,15 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_struct = match self.name() {
-            Ok(Some(type_name)) => match type_name.to_string_lossy() {
-                Ok(type_name) => f.debug_struct(&type_name),
-                Err(err) => panic!("reader error: {}", err),
-            },
-            Ok(None) => panic!("type does not have a name"),
-            Err(err) => panic!("reader error: {}", err),
-        };
-        let mut fields = self.fields().unwrap();
-        let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.try_next().unwrap() {
-            let Some(field_name) = (match field.name() {
-                Ok(name) => name,
-                Err(err) => panic!("{:?}", err),
-            }) else {
-                panic!("field does not have a name");
-            };
-            let field_name = match field_name.to_string_lossy() {
-                Ok(name) => name,
-                Err(err) => panic!("{:?}", err),
-            };
-            let field_value = match field.value() {
-                Ok(value) => value,
-                Err(err) => panic!("{:?}", err),
-            };
+        let type_name = self.name().map_err(crate::fmt_err)?;
+        let type_name = type_name.to_string_lossy().map_err(crate::fmt_err)?;
+        let mut debug_struct = f.debug_struct(&type_name);
+        let mut fields = self.fields().map_err(crate::fmt_err)?;
+        let mut fields = fields.iter().map_err(crate::fmt_err)?;
+        while let Some(field) = fields.try_next().map_err(crate::fmt_err)? {
+            let field_name = self.name().map_err(crate::fmt_err)?;
+            let field_name = field_name.to_string_lossy().map_err(crate::fmt_err)?;
+            let field_value = field.value().map_err(crate::fmt_err)?;
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));
         }
         debug_struct.finish()

@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fmt};
 
 /// The name associated with a debuginfo entry.
+#[derive(Clone)]
 pub struct Name<R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -17,14 +18,10 @@ where
         dwarf: &crate::gimli::Dwarf<R>,
         unit: &crate::gimli::Unit<R, usize>,
         entry: &crate::gimli::DebuggingInformationEntry<'_, '_, R>,
-    ) -> Result<Option<Self>, crate::gimli::Error> {
-        let maybe_name = entry.attr_value(crate::gimli::DW_AT_name)?;
-        Ok(if let Some(name) = maybe_name {
-            let name = dwarf.attr_string(unit, name)?;
-            Some(Self { name })
-        } else {
-            None
-        })
+    ) -> Result<Self, crate::err::Error> {
+        let name = crate::get(entry, crate::gimli::DW_AT_name)?;
+        let name = dwarf.attr_string(unit, name)?;
+        Ok(Self { name })
     }
 
     /// Convert all remaining data to a clone-on-write string.
@@ -32,22 +29,28 @@ where
     /// The string will be borrowed where possible, but some readers may always return an owned string.
     ///
     /// Returns an error if the data contains invalid characters.
-    pub fn to_string(&self) -> Result<Cow<'_, str>, crate::Error> {
-        Ok(self.name.to_string()?)
+    pub fn to_string(&self) -> Result<Cow<'_, str>, crate::err::Error> {
+        Ok(self
+            .name
+            .to_string()
+            .map_err(crate::err::ErrorKind::Gimli)?)
     }
 
     /// Convert all remaining data to a clone-on-write string, including invalid characters.
     ///
     /// The string will be borrowed where possible, but some readers may always return an owned string.
-    pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, crate::Error> {
-        Ok(self.name.to_string_lossy()?)
+    pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, crate::err::Error> {
+        Ok(self
+            .name
+            .to_string_lossy()
+            .map_err(crate::err::ErrorKind::Gimli)?)
     }
 
     /// Return all remaining data as a clone-on-write slice of bytes.
     ///
     /// The slice will be borrowed where possible, but some readers may always return an owned vector.
-    pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::Error> {
-        Ok(self.name.to_slice()?)
+    pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::err::Error> {
+        Ok(self.name.to_slice().map_err(crate::err::ErrorKind::Gimli)?)
     }
 }
 
@@ -56,7 +59,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.to_string_lossy().unwrap(), f)
+        self.to_string_lossy().map_err(crate::fmt_err)?.fmt(f)
     }
 }
 
@@ -65,6 +68,6 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.to_string_lossy().unwrap(), f)
+        self.to_string_lossy().map_err(crate::fmt_err)?.fmt(f)
     }
 }

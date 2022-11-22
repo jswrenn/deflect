@@ -32,23 +32,22 @@ where
     pub(crate) fn from_die<'entry>(
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Option<Self>, crate::Error> {
-        let maybe_location = entry.attr_value(crate::gimli::DW_AT_data_member_location)?;
-        Ok(if let Some(location) = maybe_location {
-            let inner = if let Some(offset) = location.udata_value() {
-                OffsetInner::Udata(offset)
-            } else if let Some(expression) = location.exprloc_value() {
-                OffsetInner::Expression(expression)
-            } else {
-                return Err(crate::ErrorKind::ValueMismatch.into());
-            };
-            Some(Self { unit, inner })
+    ) -> Result<Self, crate::err::Error> {
+        let location = crate::get(entry, crate::gimli::DW_AT_data_member_location)?;
+        let inner = if let Some(offset) = location.udata_value() {
+            OffsetInner::Udata(offset)
+        } else if let Some(expression) = location.exprloc_value() {
+            OffsetInner::Expression(expression)
         } else {
-            None
-        })
+            return Err(crate::err::ErrorKind::invalid_attr(
+                crate::gimli::DW_AT_data_member_location,
+            )
+            .into());
+        };
+        Ok(Self { unit, inner })
     }
 
-    pub fn address(self, start: u64) -> Result<u64, crate::Error> {
+    pub fn address(self, start: u64) -> Result<u64, crate::err::Error> {
         match self.inner {
             OffsetInner::Udata(offset) => Ok(start + offset),
             OffsetInner::Expression(expression) => {

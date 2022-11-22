@@ -21,7 +21,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         let _tree = unit.entries_tree(Some(entry.offset()))?;
         //crate::debug::inspect_tree(&mut tree, dwarf, unit);
         crate::check_tag(&entry, crate::gimli::DW_TAG_member)?;
@@ -47,28 +47,28 @@ where
     }
 
     /// The name of this primitive type.
-    pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::err::Error> {
         Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
     }
 
     /// The size of this field, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn size(&self) -> Result<Option<u64>, crate::err::Error> {
         Ok(crate::get_size_opt(self.entry())?)
     }
 
     /// The alignment of this field, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::err::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 
     /// The offset at which this field occurs.
-    pub fn offset(&'dwarf self) -> Result<Option<Offset<'dwarf, R>>, crate::Error> {
+    pub fn offset(&'dwarf self) -> Result<Offset<'dwarf, R>, crate::err::Error> {
         Offset::from_die(self.unit(), self.entry())
     }
 
     /// The type of the field.
-    pub fn r#type(&self) -> Result<Type<'dwarf, R>, crate::Error> {
-        let r#type = crate::get_type_opt(self.unit, &self.entry)?.unwrap();
+    pub fn r#type(&self) -> Result<Type<'dwarf, R>, crate::err::Error> {
+        let r#type = crate::get_type_res(self.unit, &self.entry)?;
         super::Type::from_die(self.dwarf, self.unit, r#type)
     }
 }
@@ -78,10 +78,6 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.name() {
-            Ok(Some(field_name)) => field_name.fmt(f),
-            Ok(None) => panic!("field does not have a name"),
-            Err(err) => panic!("reader error: {:?}", err),
-        }
+        self.name().map_err(crate::fmt_err)?.fmt(f)
     }
 }

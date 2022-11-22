@@ -19,7 +19,7 @@ where
         Self { schema, value }
     }
 
-    pub fn as_ptr(&self) ->  Result<crate::Bytes<'value>, crate::Error> {
+    pub fn as_ptr(&self) -> Result<crate::Bytes<'value>, crate::err::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?.try_into().unwrap();
@@ -29,7 +29,7 @@ where
     }
 
     /// The value behind this reference.
-    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
+    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::err::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?.try_into().unwrap();

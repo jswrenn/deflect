@@ -18,8 +18,8 @@ pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use r#enum::Enum;
 pub use r#ref::Ref;
-pub use slice::Slice;
 pub use r#struct::Struct;
+pub use slice::Slice;
 pub use variant::Variant;
 
 #[allow(non_camel_case_types)]
@@ -197,7 +197,6 @@ where
         }
     }
 }
-
 
 macro_rules! generate_primitive_conversions {
     ($($t:ident,)*) => {

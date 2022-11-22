@@ -27,6 +27,8 @@ use std::{
 };
 
 mod debug;
+mod err;
+
 pub mod schema;
 pub mod r#value;
 
@@ -100,7 +102,7 @@ impl dyn Reflect {
     pub fn reflect<'value, 'dwarf, D: DebugInfo>(
         &'value self,
         debug_info: &'dwarf D,
-    ) -> Result<Value<'value, 'dwarf, D::Reader>, Error> {
+    ) -> Result<Value<'value, 'dwarf, D::Reader>, crate::err::Error> {
         let context = debug_info.context();
         let (unit, offset) = self.dw_unit_and_die_of(context)?;
         let entry = unit.entry(offset)?;
@@ -114,21 +116,20 @@ impl dyn Reflect {
     fn dw_unit_and_die_of<'ctx, R>(
         &self,
         ctx: &'ctx addr2line::Context<R>,
-    ) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::Error>
+    ) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::err::Error>
     where
         R: crate::gimli::Reader<Offset = usize>,
     {
         let Some(symbol_addr) = self.symbol_addr() else {
-            return Err(ErrorKind::MakeAMoreSpecificVariant("Could not find symbol address for `symbol_addr::<T>`.").into())
+            panic!("Could not find symbol address for `symbol_addr::<T>`.")
         };
 
-        let dw_die_offset = ctx
+        let Some(dw_die_offset) = ctx
             .find_frames(symbol_addr as u64)?
             .next()?
-            .and_then(|f| f.dw_die_offset)
-            .ok_or(ErrorKind::MakeAMoreSpecificVariant(
-                "Could not find debug info for `symbol_addr::<T>`.",
-            ))?;
+            .and_then(|f| f.dw_die_offset) else {
+                panic!("Could not find debug info for `symbol_addr::<T>`.");
+            };
 
         let unit = ctx.find_dwarf_unit(symbol_addr as u64).unwrap();
 
@@ -143,9 +144,9 @@ impl dyn Reflect {
             }
         }
 
-        let ty = ty.ok_or(ErrorKind::MakeAMoreSpecificVariant(
-            "Could not find parameter type entry",
-        ))?;
+        let Some(ty) = ty else {
+            panic!( "Could not find parameter type entry");
+        };
 
         Ok((unit, ty))
     }
@@ -248,10 +249,10 @@ fn current_binary() -> Option<std::fs::File> {
 fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     expected: crate::gimli::DwTag,
-) -> Result<(), ErrorKind> {
+) -> Result<(), crate::err::ErrorKind> {
     let actual = entry.tag();
     if actual != expected {
-        Err(ErrorKind::TagMismatch { expected, actual })
+        Err(crate::err::ErrorKind::tag_mismatch(expected, actual))
     } else {
         Ok(())
     }
@@ -261,7 +262,7 @@ fn get_name<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     dwarf: &crate::gimli::Dwarf<R>,
     unit: &crate::gimli::Unit<R, usize>,
-) -> Result<R, ErrorKind> {
+) -> Result<R, crate::err::ErrorKind> {
     let name = get(entry, crate::gimli::DW_AT_name)?;
     let name = dwarf.attr_string(unit, name)?;
     Ok(name)
@@ -270,25 +271,30 @@ fn get_name<R: crate::gimli::Reader<Offset = usize>>(
 fn get<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     attr: crate::gimli::DwAt,
-) -> Result<AttributeValue<R>, ErrorKind> {
+) -> Result<AttributeValue<R>, crate::err::ErrorKind> {
     entry
         .attr_value(attr)?
-        .ok_or(ErrorKind::MissingAttr { attr })
+        .ok_or(crate::err::ErrorKind::missing_attr(attr))
 }
 
 pub(crate) fn get_size<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<u64, ErrorKind> {
+) -> Result<u64, crate::err::ErrorKind> {
     let size = get(entry, crate::gimli::DW_AT_byte_size)?;
-    size.udata_value().ok_or(ErrorKind::ValueMismatch)
+    size.udata_value()
+        .ok_or(crate::err::ErrorKind::invalid_attr(
+            crate::gimli::DW_AT_byte_size,
+        ))
 }
 
 pub(crate) fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<Option<u64>, ErrorKind> {
+) -> Result<Option<u64>, crate::err::ErrorKind> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
     if let Some(size) = maybe_size {
-        size.udata_value().ok_or(ErrorKind::ValueMismatch).map(Some)
+        Ok(Some(size.udata_value().ok_or(
+            crate::err::ErrorKind::invalid_attr(crate::gimli::DW_AT_byte_size),
+        )?))
     } else {
         Ok(None)
     }
@@ -296,10 +302,14 @@ pub(crate) fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
 
 pub(crate) fn get_align<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<Option<u64>, ErrorKind> {
-    let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
+) -> Result<Option<u64>, crate::err::ErrorKind> {
+    let maybe_size = entry.attr_value(crate::gimli::DW_AT_alignment)?;
     if let Some(size) = maybe_size {
-        size.udata_value().ok_or(ErrorKind::ValueMismatch).map(Some)
+        size.udata_value()
+            .ok_or(crate::err::ErrorKind::invalid_attr(
+                crate::gimli::DW_AT_alignment,
+            ))
+            .map(Some)
     } else {
         Ok(None)
     }
@@ -308,24 +318,29 @@ pub(crate) fn get_align<R: crate::gimli::Reader<Offset = usize>>(
 pub(crate) fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-) -> Result<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>, ErrorKind> {
+) -> Result<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>, crate::err::ErrorKind> {
     if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
         Ok(unit.entry(offset)?)
     } else {
-        Err(ErrorKind::ValueMismatch)
+        Err(crate::err::ErrorKind::invalid_attr(
+            crate::gimli::DW_AT_type,
+        ))
     }
 }
 
 pub(crate) fn get_type_opt<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, ErrorKind> {
+) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, crate::err::ErrorKind>
+{
     let maybe_type = entry.attr_value(crate::gimli::DW_AT_type)?;
     Ok(if let Some(_type) = maybe_type {
         if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
             Some(unit.entry(offset)?)
         } else {
-            return Err(ErrorKind::ValueMismatch);
+            return Err(crate::err::ErrorKind::invalid_attr(
+                crate::gimli::DW_AT_type,
+            ));
         }
     } else {
         None
@@ -334,11 +349,15 @@ pub(crate) fn get_type_opt<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usiz
 
 pub(crate) fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-) -> Result<UnitOffset, ErrorKind> {
-    if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
+) -> Result<UnitOffset, crate::err::ErrorKind> {
+    let attr = crate::gimli::DW_AT_type;
+    let value = get(entry, attr)?;
+    let x = entry.attr(attr)?.unwrap();
+
+    if let AttributeValue::UnitRef(offset) = value {
         Ok(offset)
     } else {
-        Err(ErrorKind::ValueMismatch)
+        Err(err::ErrorKind::invalid_attr(attr))
     }
 }
 
@@ -346,7 +365,7 @@ fn get_file<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     dwarf: &'a crate::gimli::Dwarf<R>,
     unit: &'a crate::gimli::Unit<R, usize>,
     entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<Option<Cow<'a, str>>, Error> {
+) -> Result<Option<Cow<'a, str>>, crate::err::Error> {
     let file = get(entry, crate::gimli::DW_AT_decl_file)?;
     let AttributeValue::FileIndex(index) = file else {
         return Ok(None); // error?
@@ -369,7 +388,7 @@ fn get_file<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
 fn get_attr_ref<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     name: crate::gimli::DwAt,
-) -> Result<Option<UnitOffset>, Error> {
+) -> Result<Option<UnitOffset>, crate::err::ErrorKind> {
     if let Some(attr) = entry.attr(name)? {
         if let AttributeValue::UnitRef(offset) = attr.value() {
             return Ok(Some(offset));
@@ -406,4 +425,9 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
+}
+
+fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
+    eprintln!("ERROR: {}", err);
+    fmt::Error
 }

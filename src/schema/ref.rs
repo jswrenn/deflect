@@ -42,8 +42,8 @@ where
         &self.entry
     }
 
-    /// The name of this primitive type.
-    pub fn name(&self) -> Result<Option<super::Name<R>>, crate::Error> {
+    /// The name of this reference type.
+    pub fn name(&self) -> Result<super::Name<R>, crate::err::Error> {
         Ok(super::Name::from_die(
             self.dwarf(),
             self.unit(),
@@ -52,12 +52,12 @@ where
     }
 
     /// The size of this type, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_size_opt(self.entry())?)
+    pub fn size(&self) -> Result<u64, crate::err::Error> {
+        Ok(crate::get_size(self.entry())?)
     }
 
     /// The type of the referent.
-    pub fn r#type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
+    pub fn r#type(&self) -> Result<super::Type<'dwarf, R>, crate::err::Error> {
         let r#type = crate::get_type_res(self.unit, &self.entry)?;
         super::Type::from_die(self.dwarf, self.unit, r#type)
     }
@@ -83,10 +83,6 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.name() {
-            Ok(Some(type_name)) => type_name.fmt(f),
-            Ok(None) => panic!("type does not have a name"),
-            Err(err) => panic!("reader error: {:?}", err),
-        }
+        self.name().map_err(crate::fmt_err)?.fmt(f)
     }
 }

@@ -25,9 +25,9 @@ pub use offset::Offset;
 pub use r#enum::Enum;
 pub use r#field::Field;
 pub use r#ref::Ref;
-pub use slice::Slice;
 pub use r#struct::Struct;
 pub use r#variant::Variant;
+pub use slice::Slice;
 pub use variants::{Variants, VariantsIter};
 
 /// A language type.
@@ -94,10 +94,10 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         Ok(match entry.tag() {
             crate::gimli::DW_TAG_base_type => {
-                if let Some(name) = Name::from_die(dwarf, unit, &entry)? {
+                if let name = Name::from_die(dwarf, unit, &entry)? {
                     let name = name.to_slice()?;
                     match name.as_ref() {
                         b"bool" => Self::bool(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
@@ -130,9 +130,11 @@ where
                 }
             }
             crate::gimli::DW_TAG_structure_type => {
-                let name = Name::from_die(dwarf, unit, &entry)?.ok_or(crate::ErrorKind::MissingAttr { attr: crate::gimli::DW_AT_name })?;
+                let name = Name::from_die(dwarf, unit, &entry)?;
                 if name.to_slice()?.starts_with(b"&[") {
-                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(dwarf, unit, entry)?));
+                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
+                        dwarf, unit, entry,
+                    )?));
                 }
 
                 let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
@@ -180,7 +182,7 @@ where
         })
     }
 
-    pub fn size(&self) -> Result<u64, crate::Error> {
+    pub fn size(&self) -> Result<u64, crate::err::Error> {
         match self {
             Self::bool(v) => Ok(v.size()),
             Self::char(v) => Ok(v.size()),
@@ -203,7 +205,7 @@ where
             Self::Slice(v) => v.size(),
             Self::Struct(v) => v.size(),
             Self::Enum(v) => v.size(),
-            Self::Ref(v) => Ok(v.size()?.unwrap()),
+            Self::Ref(v) => Ok(v.size()?),
             Self::Function(v) => Ok(0),
         }
     }

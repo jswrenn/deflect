@@ -23,7 +23,7 @@ where
     /// Produces an iterator over variants.
     pub fn iter<'tree>(
         &'tree mut self,
-    ) -> Result<FieldsIter<'value, 'tree, 'dwarf, R>, crate::Error> {
+    ) -> Result<FieldsIter<'value, 'tree, 'dwarf, R>, crate::err::Error> {
         Ok(FieldsIter {
             schema: self.schema.iter()?,
             value: self.value,
@@ -45,7 +45,9 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Produces the next field, if any.
-    pub fn try_next(&mut self) -> Result<Option<super::Field<'value, 'dwarf, R>>, crate::Error> {
+    pub fn try_next(
+        &mut self,
+    ) -> Result<Option<super::Field<'value, 'dwarf, R>>, crate::err::Error> {
         let Some(next) = self.schema.try_next()? else { return Ok(None) };
         Ok(Some(unsafe { super::field::Field::new(next, self.value) }))
     }

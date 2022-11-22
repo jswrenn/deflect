@@ -1,6 +1,5 @@
 use std::{fmt, ops};
 
-
 pub struct Array<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -16,7 +15,7 @@ where
     pub(crate) unsafe fn new(
         value: crate::Bytes<'value>,
         schema: crate::schema::Array<'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         let len = schema.len()?;
         let elt_size = schema.elt()?.size()?;
         let bytes = len.checked_mul(elt_size).unwrap();
@@ -25,15 +24,19 @@ where
         Ok(Self { value, schema })
     }
 
-    pub fn iter(&self) -> Result<impl Iterator<Item=Result<super::Value<'value, 'dwarf, R>, crate::Error>>, crate::Error> {
+    pub fn iter(
+        &self,
+    ) -> Result<
+        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::err::Error>>,
+        crate::err::Error,
+    > {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;
         let elt_size = usize::try_from(elt_size).unwrap();
-        Ok(self.value
+        Ok(self
+            .value
             .chunks(elt_size)
-            .map(move |chunk| unsafe {
-                Ok(super::Value::with_type(elt_type.clone(), chunk))
-            }))
+            .map(move |chunk| unsafe { Ok(super::Value::with_type(elt_type.clone(), chunk)) }))
     }
 }
 

@@ -1,6 +1,5 @@
 use std::{fmt, ops};
 
-
 pub struct Slice<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
@@ -16,47 +15,46 @@ where
     pub(crate) unsafe fn new(
         value: crate::Bytes<'value>,
         schema: crate::schema::Slice<'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         Ok(Self { value, schema })
     }
 
-    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
-        let field = unsafe {
-            super::Field::new(self.schema.data_ptr().clone(), self.value)
-        };
+    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::err::Error> {
+        let field = unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value) };
         let value = field.value()?;
         let value: super::Ref<_> = value.try_into().unwrap();
         let ptr = value.as_ptr()?;
         Ok(ptr)
     }
 
-    pub fn len(&self) -> Result<usize, crate::Error> {
-        let field = unsafe {
-            super::Field::new(self.schema.length().clone(), self.value)
-        };
+    pub fn len(&self) -> Result<usize, crate::err::Error> {
+        let field = unsafe { super::Field::new(self.schema.length().clone(), self.value) };
         let value = field.value().unwrap();
-        let atom: super::Atom<usize, _> = value.try_into().unwrap();
+        let atom: super::Atom<usize, _> = value.try_into()?;
         let len: &usize = atom.try_into().unwrap();
         Ok(*len)
     }
 
-    pub fn iter(&self) -> Result<impl Iterator<Item=Result<super::Value<'value, 'dwarf, R>, crate::Error>>, crate::Error> {
+    pub fn iter(
+        &self,
+    ) -> Result<
+        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::err::Error>>,
+        crate::err::Error,
+    > {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;
-        let elt_size = usize::try_from(elt_size).unwrap();
+        let elt_size = usize::try_from(elt_size)?;
 
         let len = self.len()?;
         let bytes = elt_size * len;
 
         let value = self.data_ptr()?;
         let value = unsafe { &*std::ptr::slice_from_raw_parts(value.as_ptr(), bytes) };
-        
+
         Ok(value
             .chunks(elt_size)
             .take(len)
-            .map(move |chunk| unsafe {
-                Ok(super::Value::with_type(elt_type.clone(), chunk))
-            }))
+            .map(move |chunk| unsafe { Ok(super::Value::with_type(elt_type.clone(), chunk)) }))
     }
 }
 
@@ -77,9 +75,10 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("&")?;
         let mut debug_list = f.debug_list();
-        for maybe_elt in self.iter().unwrap() {
-            let elt = maybe_elt.unwrap();
+        for maybe_elt in self.iter().map_err(crate::fmt_err)? {
+            let elt = maybe_elt.map_err(crate::fmt_err)?;
             debug_list.entry(&crate::DebugDisplay(elt));
         }
         debug_list.finish()

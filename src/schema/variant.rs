@@ -50,21 +50,21 @@ where
     }
 
     /// The name of this variant.
-    pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
-        Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+    pub fn name(&self) -> Result<Name<R>, crate::err::Error> {
+        Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 
     /// The size of this variant, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn size(&self) -> Result<Option<u64>, crate::err::Error> {
         Ok(crate::get_size_opt(self.entry())?)
     }
 
     /// The alignment of this variant, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::err::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 
-    pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::Error> {
+    pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::err::Error> {
         crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
@@ -73,7 +73,7 @@ where
     }
 
     /// The fields of this variant.
-    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::err::Error> {
         let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
     }
@@ -84,31 +84,16 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug_struct = match self.name() {
-            Ok(Some(variant_name)) => match variant_name.to_string_lossy() {
-                Ok(variant_name) => f.debug_struct(&variant_name),
-                Err(err) => panic!("reader error: {err}"),
-            },
-            Ok(None) => panic!("variant does not have a name"),
-            Err(err) => panic!("reader error: {err}"),
-        };
-        let mut fields = self.fields().unwrap();
-        let mut fields = fields.iter().unwrap();
-        while let Some(field) = fields.try_next().unwrap() {
-            let field_type = match field.r#type() {
-                Ok(field_type) => field_type,
-                Err(err) => panic!("reader error: {err}"),
-            };
-            match field.name() {
-                Ok(Some(field_name)) => match field_name.to_string_lossy() {
-                    Ok(field_name) => {
-                        debug_struct.field(&field_name, &crate::DebugDisplay(field_type))
-                    }
-                    Err(err) => panic!("reader error: {}", err),
-                },
-                Ok(None) => panic!("type does not have a name"),
-                Err(err) => panic!("reader error: {}", err),
-            };
+        let variant_name = self.name().map_err(crate::fmt_err)?;
+        let variant_name = variant_name.to_string_lossy().map_err(crate::fmt_err)?;
+        let mut debug_struct = f.debug_struct(&variant_name);
+        let mut fields = self.fields().map_err(crate::fmt_err)?;
+        let mut fields = fields.iter().map_err(crate::fmt_err)?;
+        while let Some(field) = fields.try_next().map_err(crate::fmt_err)? {
+            let field_type = field.r#type().map_err(crate::fmt_err)?;
+            let field_name = self.name().map_err(crate::fmt_err)?;
+            let field_name = field_name.to_string_lossy().map_err(crate::fmt_err)?;
+            debug_struct.field(&field_name, &crate::DebugDisplay(field_type));
         }
         debug_struct.finish()
     }

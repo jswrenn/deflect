@@ -22,23 +22,22 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
 
-        let name = Name::from_die(dwarf, unit, &entry)?.ok_or(crate::ErrorKind::MissingAttr {
-            attr: crate::gimli::DW_AT_name,
-        })?;
-
-        if name.to_slice()? != std::any::type_name::<T>().as_bytes() {
-            Err(crate::ErrorKind::ValueMismatch)?;
+        let name = Name::from_die(dwarf, unit, &entry)?;
+        let expected = std::any::type_name::<T>();
+        if name.to_slice()? != expected.as_bytes() {
+            let actual = name.to_string_lossy()?.to_string();
+            Err(crate::err::ErrorKind::name_mismatch(expected, actual))?;
         }
 
-        let size = crate::get_size_opt(&entry)?.ok_or(crate::ErrorKind::MissingAttr {
-            attr: crate::gimli::DW_AT_byte_size,
-        })?;
-
-        if size != core::mem::size_of::<T>() as _ {
-            Err(crate::ErrorKind::ValueMismatch)?;
+        let size: usize = crate::get_size(&entry)?
+            .try_into()
+            .map_err(crate::err::ErrorKind::TryFromInt)?;
+        let expected = core::mem::size_of::<T>();
+        if size != expected {
+            Err(crate::err::ErrorKind::size_mismatch(expected, size))?;
         }
 
         Ok(Self {

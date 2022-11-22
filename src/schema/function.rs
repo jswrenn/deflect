@@ -21,7 +21,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_subroutine_type)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -45,7 +45,7 @@ where
     }
 
     /// The name of this type.
-    pub fn name(&self) -> Result<Option<Name<R>>, crate::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::err::Error> {
         Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
     }
 }
@@ -70,12 +70,6 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: Can we get back function names?
-        if let Some(name) = self.name().expect("gimli err") {
-            let name = name.to_string_lossy().expect("gimli err");
-            write!(f, "fn {name}<todo>(todo) -> (todo)")
-        } else {
-            write!(f, "fn ()<todo>(todo) -> (todo)")
-        }
+        self.name().map_err(crate::fmt_err)?.fmt(f)
     }
 }

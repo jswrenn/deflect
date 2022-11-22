@@ -21,13 +21,15 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::err::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
-        let name = Name::from_die(dwarf, unit, &entry)?.ok_or(crate::ErrorKind::MissingAttr { attr: crate::gimli::DW_AT_name })?;
+
+        let name = Name::from_die(dwarf, unit, &entry)?;
+
         let name = name.to_slice()?;
-        
         if !(name.starts_with(b"&[") && name.ends_with(b"]")) {
-            panic!()
+            let actual = String::from_utf8_lossy(name.as_ref()).to_string();
+            Err(crate::err::ErrorKind::name_mismatch("&[T]", actual))?;
         };
 
         let r#struct = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
@@ -37,8 +39,11 @@ where
         let data_ptr = fields.try_next()?.unwrap();
         let length = fields.try_next()?.unwrap();
 
-
-        Ok(Self { r#struct, data_ptr, length })
+        Ok(Self {
+            r#struct,
+            data_ptr,
+            length,
+        })
     }
 
     /// The [DWARF](crate::gimli::Dwarf) sections that this `Struct`'s debuginfo belongs to.
@@ -70,21 +75,20 @@ where
     }
 
     /// The element type of this slice.
-    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
+    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::err::Error> {
         if let super::Type::Ref(r#ref) = self.data_ptr().r#type()? {
-            return r#ref.r#type()
+            return r#ref.r#type();
         }
         panic!()
-        
     }
 
     /// The size of this slice, in bytes.
-    pub fn size(&self) -> Result<u64, crate::Error> {
+    pub fn size(&self) -> Result<u64, crate::err::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
     /// The alignment of this slice, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::err::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 }

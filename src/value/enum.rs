@@ -16,20 +16,20 @@ where
     pub(crate) unsafe fn new(
         schema: crate::schema::Enum<'dwarf, R>,
         value: crate::Bytes<'value>,
-    ) -> Self {
-        let size = schema.size().unwrap() as usize;
+    ) -> Result<Self, crate::err::Error> {
+        let size = schema.size()?.try_into()?;
         let value = &value[..size];
-        Self { schema, value }
+        Ok(Self { schema, value })
     }
 
     /// The variant of this enum.
-    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::Error> {
+    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::err::Error> {
         let mut default = None;
         let mut matched = None;
 
         let discr_loc = self.discriminant_location().clone();
         let enum_addr = self.value.as_ptr() as *const () as u64;
-        let discr_addr = discr_loc.address(enum_addr).unwrap();
+        let discr_addr = discr_loc.address(enum_addr)?;
 
         let mut variants = self.variants()?;
         let mut variants = variants.iter()?;

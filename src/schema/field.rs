@@ -48,7 +48,7 @@ where
 
     /// The name of this primitive type.
     pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
-        Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+        Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 
     /// The size of this field, in bytes.

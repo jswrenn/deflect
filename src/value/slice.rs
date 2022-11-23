@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 pub struct Slice<'value, 'dwarf, R>
 where

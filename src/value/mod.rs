@@ -396,15 +396,13 @@ macro_rules! generate_primitive_conversions {
                 if let Value::$t(value) = value {
                     Ok(value)
                 } else {
-                    Err(crate::error::Downcast::new::<
-                        Value<'value, 'dwarf, R>,
-                        Self,
-                    >())
+                    Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
                 }
             }
         }
 
-        impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'value std::primitive::$t
+        impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>>
+            for &'value std::primitive::$t
         where
             R: crate::gimli::Reader<Offset = std::primitive::usize>,
         {
@@ -450,10 +448,7 @@ macro_rules! generate_primitive_conversions {
                 if let Value::$t(value) = value {
                     Ok(value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<
-                        Value<'value, 'dwarf, R>,
-                        Self,
-                    >())
+                    Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
                 }
             }
         }
@@ -468,10 +463,7 @@ macro_rules! generate_primitive_conversions {
                 if let Value::$t(value) = value {
                     Ok(*value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<
-                        Value<'value, 'dwarf, R>,
-                        Self,
-                    >())
+                    Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
                 }
             }
         }

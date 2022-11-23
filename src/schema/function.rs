@@ -46,7 +46,7 @@ where
 
     /// The name of this type.
     pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
-        Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
+        Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 }
 

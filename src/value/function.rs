@@ -26,7 +26,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        return self.schema.fmt(f);
+        self.schema.fmt(f)
     }
 }
 

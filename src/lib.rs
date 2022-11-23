@@ -14,13 +14,10 @@ use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
 
 use anyhow::anyhow;
 use std::{
-    backtrace::Backtrace,
     borrow::Cow,
     ffi::c_void,
     fmt,
-    marker::PhantomData,
     mem::{self, MaybeUninit},
-    ops,
     ptr::slice_from_raw_parts,
     rc::Rc,
     sync::LazyLock,
@@ -226,9 +223,6 @@ where
     MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, R>),
 }
 
-
-
-
 fn current_binary() -> Option<std::fs::File> {
     let file = std::fs::File::open(std::env::current_exe().unwrap()).ok()?;
     Some(file)
@@ -326,7 +320,8 @@ pub(crate) fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usiz
 pub(crate) fn get_type_opt<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, crate::error::Kind> {
+) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, crate::error::Kind>
+{
     let maybe_type = entry.attr_value(crate::gimli::DW_AT_type)?;
     Ok(if let Some(_type) = maybe_type {
         if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
@@ -344,7 +339,7 @@ pub(crate) fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<UnitOffset, crate::error::Kind> {
     let attr = crate::gimli::DW_AT_type;
     let value = get(entry, attr)?;
-    let x = entry.attr(attr)?.unwrap();
+    let _x = entry.attr(attr)?.unwrap();
 
     if let AttributeValue::UnitRef(offset) = value {
         Ok(offset)

@@ -62,7 +62,7 @@ where
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Struct` abstracts over.
     #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
-        &self.Struct.entry()
+        self.Struct.entry()
     }
 
     /// The `data_ptr` field of this slice.
@@ -113,7 +113,7 @@ impl<'value, 'dwarf, R> fmt::Display for slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }

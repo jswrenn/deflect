@@ -97,8 +97,7 @@ impl<'value, 'dwarf, R> fmt::Display for array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
 }

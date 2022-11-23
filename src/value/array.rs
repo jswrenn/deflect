@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 pub struct Array<'value, 'dwarf, R>
 where

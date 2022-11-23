@@ -18,16 +18,16 @@ mod variants;
 
 pub use array_impl::array;
 pub use data::Data;
+pub use enum_impl::Enum;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
 pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
-pub use enum_impl::Enum;
 pub use r#field::Field;
-pub use struct_impl::Struct;
 pub use r#variant::Variant;
 pub use slice_impl::slice;
+pub use struct_impl::Struct;
 pub use variants::{Variants, VariantsIter};
 
 /// A reflected language type.
@@ -150,18 +150,14 @@ where
                 }
 
                 if let Some(_variants) = variants {
-                    Self::Enum(Enum::from_dw_tag_structure_type(
-                        dwarf, unit, entry,
-                    )?)
+                    Self::Enum(Enum::from_dw_tag_structure_type(dwarf, unit, entry)?)
                 } else {
-                    Self::Struct(Struct::from_dw_tag_structure_type(
-                        dwarf, unit, entry,
-                    )?)
+                    Self::Struct(Struct::from_dw_tag_structure_type(dwarf, unit, entry)?)
                 }
             }
-            crate::gimli::DW_TAG_enumeration_type => Self::Enum(
-                Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?,
-            ),
+            crate::gimli::DW_TAG_enumeration_type => {
+                Self::Enum(Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?)
+            }
             crate::gimli::DW_TAG_pointer_type => {
                 let name = Name::from_die(dwarf, unit, &entry)
                     .map(Some)
@@ -208,7 +204,9 @@ where
                             target,
                         ))
                     } else {
-                        return Err(crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into());
+                        return Err(
+                            crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into()
+                        );
                     }
                 } else {
                     // the `data_ptr` field of slices points to a pointer type that doesn't have a name.
@@ -221,7 +219,7 @@ where
             crate::gimli::DW_TAG_array_type => {
                 Self::array(array::from_dw_tag_array_type(dwarf, unit, entry)?)
             }
-            otherwise => {
+            _otherwise => {
                 let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
                 //let _ = crate::debug::inspect_tree(&mut tree, dwarf, unit);
                 panic!(

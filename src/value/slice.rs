@@ -12,7 +12,7 @@ impl<'value, 'dwarf, R> Slice<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) unsafe fn new(
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Slice<'dwarf, R>,
     ) -> Result<Self, crate::err::Error> {
@@ -22,15 +22,15 @@ where
     pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::err::Error> {
         let field = unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value) };
         let value = field.value()?;
-        let value: super::Ref<_> = value.try_into().unwrap();
-        let ptr = value.as_ptr()?;
+        let value: super::Pointer<crate::schema::Mut, _> = value.try_into().unwrap();
+        let ptr = unsafe { value.deref_raw()? };
         Ok(ptr)
     }
 
     pub fn len(&self) -> Result<usize, crate::err::Error> {
         let field = unsafe { super::Field::new(self.schema.length().clone(), self.value) };
         let value = field.value().unwrap();
-        let atom: super::Atom<usize, _> = value.try_into()?;
+        let atom: super::Atom<usize, _> = value.try_into().map_err(crate::err::Kind::Downcast)?;
         let len: &usize = atom.try_into().unwrap();
         Ok(*len)
     }
@@ -54,7 +54,7 @@ where
         Ok(value
             .chunks(elt_size)
             .take(len)
-            .map(move |chunk| unsafe { Ok(super::Value::with_type(elt_type.clone(), chunk)) }))
+            .map(move |chunk| unsafe { super::Value::with_type(elt_type.clone(), chunk) }))
     }
 }
 

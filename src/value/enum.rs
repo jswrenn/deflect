@@ -13,9 +13,9 @@ impl<'value, 'dwarf, R> Enum<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) unsafe fn new(
-        schema: crate::schema::Enum<'dwarf, R>,
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
+        schema: crate::schema::Enum<'dwarf, R>,
     ) -> Result<Self, crate::err::Error> {
         let size = schema.size()?.try_into()?;
         let value = &value[..size];

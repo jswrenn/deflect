@@ -12,11 +12,11 @@ impl<'value, 'dwarf, R> Struct<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) unsafe fn new(
-        schema: crate::schema::Struct<'dwarf, R>,
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-    ) -> Self {
-        Self { schema, value }
+        schema: crate::schema::Struct<'dwarf, R>,
+    ) -> Result<Self, crate::err::Error> {
+        Ok(Self { schema, value })
     }
 
     /// The fields of this struct.

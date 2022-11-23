@@ -14,10 +14,10 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Construct an `Atom`.
-    pub(crate) unsafe fn new(
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Atom<'dwarf, T, R>,
-    ) -> Self {
+    ) -> Result<Self, crate::err::Error> {
         let size = std::mem::size_of::<T>();
         let value = &value[..size];
         let value = if size != 0 {
@@ -26,7 +26,7 @@ where
         } else {
             &*(value.as_ptr() as *const _)
         };
-        Self { schema, value }
+        Ok(Self { schema, value })
     }
 
     pub fn value(&self) -> &'value T {

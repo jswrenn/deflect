@@ -30,10 +30,7 @@ where
     ///
     /// Returns an error if the data contains invalid characters.
     pub fn to_string(&self) -> Result<Cow<'_, str>, crate::err::Error> {
-        Ok(self
-            .name
-            .to_string()
-            .map_err(crate::err::ErrorKind::Gimli)?)
+        Ok(self.name.to_string().map_err(crate::err::Kind::Gimli)?)
     }
 
     /// Convert all remaining data to a clone-on-write string, including invalid characters.
@@ -43,14 +40,14 @@ where
         Ok(self
             .name
             .to_string_lossy()
-            .map_err(crate::err::ErrorKind::Gimli)?)
+            .map_err(crate::err::Kind::Gimli)?)
     }
 
     /// Return all remaining data as a clone-on-write slice of bytes.
     ///
     /// The slice will be borrowed where possible, but some readers may always return an owned vector.
     pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::err::Error> {
-        Ok(self.name.to_slice().map_err(crate::err::ErrorKind::Gimli)?)
+        Ok(self.name.to_slice().map_err(crate::err::Kind::Gimli)?)
     }
 }
 

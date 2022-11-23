@@ -9,7 +9,7 @@ mod fields;
 mod function;
 mod name;
 mod offset;
-mod r#ref;
+mod pointer;
 mod slice;
 mod r#struct;
 mod variant;
@@ -22,9 +22,9 @@ pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
+pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
 pub use r#enum::Enum;
 pub use r#field::Field;
-pub use r#ref::Ref;
 pub use r#struct::Struct;
 pub use r#variant::Variant;
 pub use slice::Slice;
@@ -80,8 +80,14 @@ where
     Struct(r#struct::Struct<'dwarf, R>),
     /// An `enum`.
     Enum(r#enum::Enum<'dwarf, R>),
-    /// A reference type.
-    Ref(r#ref::Ref<'dwarf, R>),
+    /// A shared reference type.
+    SharedRef(Pointer<'dwarf, pointer::Shared, R>),
+    /// A unique reference type.
+    UniqueRef(Pointer<'dwarf, pointer::Unique, R>),
+    /// A `const` pointer type.
+    ConstPtr(Pointer<'dwarf, pointer::Const, R>),
+    /// A `mut` pointer type.
+    MutPtr(Pointer<'dwarf, pointer::Mut, R>),
     /// A function type.
     Function(function::Function<'dwarf, R>),
 }
@@ -159,11 +165,61 @@ where
                     )?)
                 }
             }
-            crate::gimli::DW_TAG_enumeration_type => {
-                Self::Enum(r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry).unwrap())
-            }
+            crate::gimli::DW_TAG_enumeration_type => Self::Enum(
+                r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?,
+            ),
             crate::gimli::DW_TAG_pointer_type => {
-                Self::Ref(Ref::from_dw_pointer_type(dwarf, unit, entry))
+                let name = Name::from_die(dwarf, unit, &entry)
+                    .map(Some)
+                    .or_else(|err| {
+                        if let crate::err::Kind::MissingAttr(_) = err.kind {
+                            Ok(None)
+                        } else {
+                            Err(err)
+                        }
+                    })?;
+                let target = crate::get_type_ref(&entry)?;
+                if let Some(name) = name {
+                    let name_as_slice = name.to_slice()?;
+                    if name_as_slice.starts_with(b"*mut ") {
+                        Self::MutPtr(Pointer::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
+                    } else if name_as_slice.starts_with(b"*const ") {
+                        Self::ConstPtr(Pointer::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
+                    } else if name_as_slice.starts_with(b"&mut ") {
+                        Self::UniqueRef(Pointer::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
+                    } else if name_as_slice.starts_with(b"&") {
+                        Self::SharedRef(Pointer::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
+                    } else {
+                        return Err(crate::err::Kind::invalid_attr(crate::gimli::DW_AT_name).into());
+                    }
+                } else {
+                    // the `data_ptr` field of slices points to a pointer type that doesn't have a name.
+                    Self::MutPtr(Pointer::new(dwarf, unit, entry.offset(), None, target))
+                }
             }
             crate::gimli::DW_TAG_subroutine_type => {
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
@@ -205,8 +261,11 @@ where
             Self::Slice(v) => v.size(),
             Self::Struct(v) => v.size(),
             Self::Enum(v) => v.size(),
-            Self::Ref(v) => Ok(v.size()?),
-            Self::Function(v) => Ok(0),
+            Self::Function(_) => Ok(0),
+            Self::SharedRef(_) => Ok(std::mem::size_of::<usize>() as _),
+            Self::UniqueRef(_) => Ok(std::mem::size_of::<usize>() as _),
+            Self::ConstPtr(_) => Ok(std::mem::size_of::<usize>() as _),
+            Self::MutPtr(_) => Ok(std::mem::size_of::<usize>() as _),
         }
     }
 }
@@ -238,8 +297,11 @@ where
             Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
-            Self::Ref(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
+            Self::SharedRef(v) => v.fmt(f),
+            Self::UniqueRef(v) => v.fmt(f),
+            Self::ConstPtr(v) => v.fmt(f),
+            Self::MutPtr(v) => v.fmt(f),
         }
     }
 }
@@ -271,8 +333,12 @@ where
             Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
-            Self::Ref(v) => v.fmt(f),
+            Self::SharedRef(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
+            Self::SharedRef(v) => v.fmt(f),
+            Self::UniqueRef(v) => v.fmt(f),
+            Self::ConstPtr(v) => v.fmt(f),
+            Self::MutPtr(v) => v.fmt(f),
         }
     }
 }

@@ -57,19 +57,15 @@ where
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
         let mut children = root.children();
-        let dw_tag_subrange_type = children
-            .next()?
-            .ok_or(crate::err::ErrorKind::missing_child(
-                crate::gimli::DW_TAG_subrange_type,
-            ))?;
+        let dw_tag_subrange_type = children.next()?.ok_or(crate::err::Kind::missing_child(
+            crate::gimli::DW_TAG_subrange_type,
+        ))?;
         let dw_tag_subrange_type = dw_tag_subrange_type.entry();
         crate::check_tag(dw_tag_subrange_type, crate::gimli::DW_TAG_subrange_type)?;
         let dw_at_count = crate::get(dw_tag_subrange_type, crate::gimli::DW_AT_count)?;
         let count = dw_at_count
             .udata_value()
-            .ok_or(crate::err::ErrorKind::invalid_attr(
-                crate::gimli::DW_AT_count,
-            ))?;
+            .ok_or(crate::err::Kind::invalid_attr(crate::gimli::DW_AT_count))?;
         Ok(count)
     }
 

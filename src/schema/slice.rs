@@ -29,7 +29,7 @@ where
         let name = name.to_slice()?;
         if !(name.starts_with(b"&[") && name.ends_with(b"]")) {
             let actual = String::from_utf8_lossy(name.as_ref()).to_string();
-            Err(crate::err::ErrorKind::name_mismatch("&[T]", actual))?;
+            Err(crate::err::Kind::name_mismatch("&[T]", actual))?;
         };
 
         let r#struct = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
@@ -76,7 +76,7 @@ where
 
     /// The element type of this slice.
     pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::err::Error> {
-        if let super::Type::Ref(r#ref) = self.data_ptr().r#type()? {
+        if let super::Type::MutPtr(r#ref) = self.data_ptr().r#type()? {
             return r#ref.r#type();
         }
         panic!()

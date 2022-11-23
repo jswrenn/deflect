@@ -25,7 +25,7 @@ where
         let r#type = self.r#type()?;
         let offset = self.offset()?.address(0)? as usize;
         let value = &self.value[offset..];
-        Ok(unsafe { super::Value::with_type(r#type, value) })
+        unsafe { super::Value::with_type(r#type, value) }
     }
 }
 

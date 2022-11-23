@@ -70,9 +70,9 @@ where
                         });
 
                     let mut entry = next.children();
-                    let entry = entry.next()?.ok_or(crate::err::ErrorKind::missing_child(
-                        crate::gimli::DW_TAG_member,
-                    ))?;
+                    let entry = entry
+                        .next()?
+                        .ok_or(crate::err::Kind::missing_child(crate::gimli::DW_TAG_member))?;
                     let entry = self.unit.entry(crate::get_type(entry.entry())?)?;
                     return Ok(Some(super::Variant::new(
                         self.dwarf,

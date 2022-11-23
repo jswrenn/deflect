@@ -6,7 +6,7 @@ mod r#enum;
 mod field;
 mod fields;
 mod function;
-mod r#ref;
+mod pointer;
 mod slice;
 mod r#struct;
 mod variant;
@@ -16,11 +16,13 @@ pub use atom::Atom;
 pub use field::Field;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
+pub use pointer::Pointer;
 pub use r#enum::Enum;
-pub use r#ref::Ref;
 pub use r#struct::Struct;
 pub use slice::Slice;
 pub use variant::Variant;
+
+use crate::schema::Shared;
 
 #[allow(non_camel_case_types)]
 #[non_exhaustive]
@@ -49,8 +51,11 @@ where
     Slice(Slice<'value, 'dwarf, R>),
     Struct(r#struct::Struct<'value, 'dwarf, R>),
     Enum(r#enum::Enum<'value, 'dwarf, R>),
-    Ref(r#ref::Ref<'value, 'dwarf, R>),
     Function(Function<'value, 'dwarf, R>),
+    SharedRef(Pointer<'value, 'dwarf, crate::schema::Shared, R>),
+    UniqueRef(Pointer<'value, 'dwarf, crate::schema::Unique, R>),
+    ConstPtr(Pointer<'value, 'dwarf, crate::schema::Const, R>),
+    MutPtr(Pointer<'value, 'dwarf, crate::schema::Mut, R>),
 }
 
 impl<'value, 'dwarf, R> Value<'value, 'dwarf, R>
@@ -61,31 +66,50 @@ where
     pub(crate) unsafe fn with_type(
         r#type: crate::schema::Type<'dwarf, R>,
         value: crate::Bytes<'value>,
-    ) -> Self {
+    ) -> Result<Self, crate::err::Error> {
         match r#type {
-            crate::schema::Type::bool(schema) => Self::bool(Atom::new(value, schema)),
-            crate::schema::Type::char(schema) => Self::char(Atom::new(value, schema)),
-            crate::schema::Type::f32(schema) => Self::f32(Atom::new(value, schema)),
-            crate::schema::Type::f64(schema) => Self::f64(Atom::new(value, schema)),
-            crate::schema::Type::i8(schema) => Self::i8(Atom::new(value, schema)),
-            crate::schema::Type::i16(schema) => Self::i16(Atom::new(value, schema)),
-            crate::schema::Type::i32(schema) => Self::i32(Atom::new(value, schema)),
-            crate::schema::Type::i64(schema) => Self::i64(Atom::new(value, schema)),
-            crate::schema::Type::i128(schema) => Self::i128(Atom::new(value, schema)),
-            crate::schema::Type::isize(schema) => Self::isize(Atom::new(value, schema)),
-            crate::schema::Type::u8(schema) => Self::u8(Atom::new(value, schema)),
-            crate::schema::Type::u16(schema) => Self::u16(Atom::new(value, schema)),
-            crate::schema::Type::u32(schema) => Self::u32(Atom::new(value, schema)),
-            crate::schema::Type::u64(schema) => Self::u64(Atom::new(value, schema)),
-            crate::schema::Type::u128(schema) => Self::u128(Atom::new(value, schema)),
-            crate::schema::Type::usize(schema) => Self::usize(Atom::new(value, schema)),
-            crate::schema::Type::unit(schema) => Self::unit(Atom::new(value, schema)),
-            crate::schema::Type::Slice(schema) => Self::Slice(Slice::new(value, schema).unwrap()),
-            crate::schema::Type::Array(schema) => Self::Array(Array::new(value, schema).unwrap()),
-            crate::schema::Type::Struct(r#type) => Self::Struct(Struct::new(r#type, value)),
-            crate::schema::Type::Enum(r#type) => Self::Enum(Enum::new(r#type, value)),
-            crate::schema::Type::Ref(r#type) => Self::Ref(Ref::new(r#type, value)),
-            crate::schema::Type::Function(r#type) => Self::Function(Function::new(value, r#type)),
+            crate::schema::Type::bool(schema) => Atom::with_schema(value, schema).map(Self::bool),
+            crate::schema::Type::char(schema) => Atom::with_schema(value, schema).map(Self::char),
+            crate::schema::Type::f32(schema) => Atom::with_schema(value, schema).map(Self::f32),
+            crate::schema::Type::f64(schema) => Atom::with_schema(value, schema).map(Self::f64),
+            crate::schema::Type::i8(schema) => Atom::with_schema(value, schema).map(Self::i8),
+            crate::schema::Type::i16(schema) => Atom::with_schema(value, schema).map(Self::i16),
+            crate::schema::Type::i32(schema) => Atom::with_schema(value, schema).map(Self::i32),
+            crate::schema::Type::i64(schema) => Atom::with_schema(value, schema).map(Self::i64),
+            crate::schema::Type::i128(schema) => Atom::with_schema(value, schema).map(Self::i128),
+            crate::schema::Type::isize(schema) => Atom::with_schema(value, schema).map(Self::isize),
+            crate::schema::Type::u8(schema) => Atom::with_schema(value, schema).map(Self::u8),
+            crate::schema::Type::u16(schema) => Atom::with_schema(value, schema).map(Self::u16),
+            crate::schema::Type::u32(schema) => Atom::with_schema(value, schema).map(Self::u32),
+            crate::schema::Type::u64(schema) => Atom::with_schema(value, schema).map(Self::u64),
+            crate::schema::Type::u128(schema) => Atom::with_schema(value, schema).map(Self::u128),
+            crate::schema::Type::usize(schema) => Atom::with_schema(value, schema).map(Self::usize),
+            crate::schema::Type::unit(schema) => Atom::with_schema(value, schema).map(Self::unit),
+            crate::schema::Type::Slice(schema) => {
+                Slice::with_schema(value, schema).map(Self::Slice)
+            }
+            crate::schema::Type::Array(schema) => {
+                Array::with_schema(value, schema).map(Self::Array)
+            }
+            crate::schema::Type::Struct(schema) => {
+                Struct::with_schema(value, schema).map(Self::Struct)
+            }
+            crate::schema::Type::Enum(schema) => Enum::with_schema(value, schema).map(Self::Enum),
+            crate::schema::Type::SharedRef(schema) => {
+                Pointer::with_schema(value, schema).map(Self::SharedRef)
+            }
+            crate::schema::Type::UniqueRef(schema) => {
+                Pointer::with_schema(value, schema).map(Self::UniqueRef)
+            }
+            crate::schema::Type::ConstPtr(schema) => {
+                Pointer::with_schema(value, schema).map(Self::ConstPtr)
+            }
+            crate::schema::Type::MutPtr(schema) => {
+                Pointer::with_schema(value, schema).map(Self::MutPtr)
+            }
+            crate::schema::Type::Function(schema) => {
+                Function::with_schema(value, schema).map(Self::Function)
+            }
         }
     }
 }
@@ -117,8 +141,11 @@ where
             Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
-            Self::Ref(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
+            Self::SharedRef(v) => v.fmt(f),
+            Self::UniqueRef(v) => v.fmt(f),
+            Self::ConstPtr(v) => v.fmt(f),
+            Self::MutPtr(v) => v.fmt(f),
         }
     }
 }
@@ -150,53 +177,209 @@ where
             Self::Array(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
-            Self::Ref(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
+            Self::SharedRef(v) => v.fmt(f),
+            Self::UniqueRef(v) => v.fmt(f),
+            Self::ConstPtr(v) => v.fmt(f),
+            Self::MutPtr(v) => v.fmt(f),
         }
     }
 }
 
-/// Upcast a `Ref<'value, 'dwarf, R>` to a `Ref<'value, 'dwarf, R>`.
-impl<'value, 'dwarf, R> From<Ref<'value, 'dwarf, R>> for Value<'value, 'dwarf, R>
+/// Upcast a `Pointer<'value, 'dwarf, Shared, R>` to a `Pointer<'value, 'dwarf, Shared, R>`.
+impl<'value, 'dwarf, R> From<Pointer<'value, 'dwarf, crate::schema::Shared, R>>
+    for Value<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    fn from(atom: Ref<'value, 'dwarf, R>) -> Self {
-        Value::Ref(atom)
+    fn from(atom: Pointer<'value, 'dwarf, Shared, R>) -> Self {
+        Value::SharedRef(atom)
     }
 }
 
-/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Ref<'value, 'dwarf, R>`.
-impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'a Ref<'value, 'dwarf, R>
+/// Upcast a `Pointer<'value, 'dwarf, Unique, R>` to a `Pointer<'value, 'dwarf, Unique, R>`.
+impl<'value, 'dwarf, R> From<Pointer<'value, 'dwarf, crate::schema::Unique, R>>
+    for Value<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+    fn from(atom: Pointer<'value, 'dwarf, crate::schema::Unique, R>) -> Self {
+        Value::UniqueRef(atom)
+    }
+}
+
+/// Upcast a `Pointer<'value, 'dwarf, Const, R>` to a `Pointer<'value, 'dwarf, Const, R>`.
+impl<'value, 'dwarf, R> From<Pointer<'value, 'dwarf, crate::schema::Const, R>>
+    for Value<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn from(atom: Pointer<'value, 'dwarf, crate::schema::Const, R>) -> Self {
+        Value::ConstPtr(atom)
+    }
+}
+
+/// Upcast a `Pointer<'value, 'dwarf, Mut, R>` to a `Pointer<'value, 'dwarf, Mut, R>`.
+impl<'value, 'dwarf, R> From<Pointer<'value, 'dwarf, crate::schema::Mut, R>>
+    for Value<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    fn from(atom: Pointer<'value, 'dwarf, crate::schema::Mut, R>) -> Self {
+        Value::MutPtr(atom)
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Shared, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>>
+    for &'a Pointer<'value, 'dwarf, crate::schema::Shared, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
 
     fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
-        if let Value::Ref(value) = value {
+        if let Value::SharedRef(value) = value {
             Ok(value)
         } else {
-            Err(crate::DowncastErr::new(value))
+            Err(crate::err::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
         }
     }
 }
 
-/// Attempt to downcast a `Value<'value, 'dwarf, R>` into a `Ref<'value, 'dwarf, R>`.
-impl<'a, 'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for Ref<'value, 'dwarf, R>
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Unique, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>>
+    for &'a Pointer<'value, 'dwarf, crate::schema::Unique, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    type Error = crate::DowncastErr<Value<'value, 'dwarf, R>, Self>;
+    type Error = crate::err::Downcast;
 
-    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
-        if let Value::Ref(value) = value {
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::UniqueRef(value) = value {
             Ok(value)
         } else {
-            Err(crate::DowncastErr::new(value))
+            Err(crate::err::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
         }
     }
 }
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Const, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>>
+    for &'a Pointer<'value, 'dwarf, crate::schema::Const, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::ConstPtr(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Mut, R>`.
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>>
+    for &'a Pointer<'value, 'dwarf, crate::schema::Mut, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::MutPtr(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+// ----
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Shared, R>`.
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>>
+    for Pointer<'value, 'dwarf, crate::schema::Shared, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::SharedRef(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Unique, R>`.
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>>
+    for Pointer<'value, 'dwarf, crate::schema::Unique, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::UniqueRef(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Const, R>`.
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>>
+    for Pointer<'value, 'dwarf, crate::schema::Const, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::ConstPtr(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+/// Attempt to downcast a `&'a Value<'value, 'dwarf, R>` into a `&'a Pointer<'value, 'dwarf, Mut, R>`.
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>>
+    for Pointer<'value, 'dwarf, crate::schema::Mut, R>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    type Error = crate::err::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::MutPtr(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+// ----
 
 macro_rules! generate_primitive_conversions {
     ($($t:ident,)*) => {
@@ -236,13 +419,13 @@ macro_rules! generate_primitive_conversions {
             where
                 R: crate::gimli::Reader<Offset = usize>,
             {
-                type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+                type Error = crate::err::Downcast;
 
                 fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
                     if let Value::$t(value) = value {
                         Ok(value)
                     } else {
-                        Err(crate::DowncastErr::new(value))
+                        Err(crate::err::Downcast::new::<&'a Value<'value, 'dwarf, R>, Self>())
                     }
                 }
             }
@@ -252,13 +435,13 @@ macro_rules! generate_primitive_conversions {
             where
                 R: crate::gimli::Reader<Offset = usize>,
             {
-                type Error = crate::DowncastErr<Value<'value, 'dwarf, R>, Self>;
+                type Error = crate::err::Downcast;
 
                 fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
                     if let Value::$t(value) = value {
                         Ok(value)
                     } else {
-                        Err(crate::DowncastErr::new(value))
+                        Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
                     }
                 }
             }
@@ -268,13 +451,13 @@ macro_rules! generate_primitive_conversions {
             where
                 R: crate::gimli::Reader<Offset = usize>,
             {
-                type Error = crate::DowncastErr<&'a Value<'value, 'dwarf, R>, Self>;
+                type Error = crate::err::Downcast;
 
                 fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
                     if let Value::$t(atom) = value {
                         Ok(atom.value())
                     } else {
-                        Err(crate::DowncastErr::new(value))
+                        Err(crate::err::Downcast::new::<&'a Value<'value, 'dwarf, R>, Self>())
                     }
                 }
             }
@@ -284,13 +467,13 @@ macro_rules! generate_primitive_conversions {
             where
                 R: crate::gimli::Reader<Offset = usize>,
             {
-                type Error = crate::DowncastErr<Value<'value, 'dwarf, R>, Self>;
+                type Error = crate::err::Downcast;
 
                 fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
                     if let Value::$t(atom) = value {
                         Ok(atom.value())
                     } else {
-                        Err(crate::DowncastErr::new(value))
+                        Err(crate::err::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
                     }
                 }
             }

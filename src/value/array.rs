@@ -12,7 +12,7 @@ impl<'value, 'dwarf, R> Array<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) unsafe fn new(
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Array<'dwarf, R>,
     ) -> Result<Self, crate::err::Error> {
@@ -36,7 +36,7 @@ where
         Ok(self
             .value
             .chunks(elt_size)
-            .map(move |chunk| unsafe { Ok(super::Value::with_type(elt_type.clone(), chunk)) }))
+            .map(move |chunk| unsafe { super::Value::with_type(elt_type.clone(), chunk) }))
     }
 }
 

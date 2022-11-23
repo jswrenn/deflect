@@ -1,26 +1,26 @@
-use std::{backtrace::Backtrace, fmt, marker::PhantomData};
+use std::backtrace::Backtrace;
 
 #[derive(thiserror::Error, Debug)]
-#[error("{}\n{}", self.error, self.backtrace)]
+#[error("{}\n{}", self.kind, self.backtrace)]
 pub struct Error {
-    error: ErrorKind,
-    backtrace: Backtrace,
+    pub kind: Kind,
+    pub backtrace: Backtrace,
 }
 
 impl<E> From<E> for Error
 where
-    ErrorKind: From<E>,
+    Kind: From<E>,
 {
     fn from(error: E) -> Self {
         Self {
-            error: error.into(),
+            kind: error.into(),
             backtrace: std::backtrace::Backtrace::capture(),
         }
     }
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ErrorKind {
+pub enum Kind {
     #[error(transparent)]
     TagMismatch(#[from] TagMismatch),
     #[error(transparent)]
@@ -43,7 +43,11 @@ pub enum ErrorKind {
     Gimli(#[from] crate::gimli::Error),
 }
 
-impl ErrorKind {
+impl Kind {
+    pub fn downcast(src: &'static str, dst: &'static str) -> Self {
+        Self::Downcast(Downcast { src, dst })
+    }
+
     pub fn tag_mismatch(expected: crate::gimli::DwTag, actual: crate::gimli::DwTag) -> Self {
         Self::TagMismatch(TagMismatch { expected, actual })
     }
@@ -78,35 +82,6 @@ impl ErrorKind {
 
     pub fn gimli(err: crate::gimli::Error) -> Self {
         Self::Gimli(err)
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-#[error("Could not downcast {:?}, received {:?}", .value, std::any::type_name::<T>())]
-pub struct DowncastErr<V, T>
-where
-    V: fmt::Debug,
-{
-    value: V,
-    r#type: PhantomData<T>,
-}
-
-impl<V, T> DowncastErr<V, T>
-where
-    V: fmt::Debug,
-{
-    pub fn new(value: V) -> Self {
-        Self {
-            value,
-            r#type: PhantomData,
-        }
-    }
-
-    pub fn into<V2, T2>(self) -> DowncastErr<V2, T2>
-    where
-        V2: fmt::Debug + From<V>,
-    {
-        DowncastErr::new(self.value.into())
     }
 }
 
@@ -186,8 +161,16 @@ pub struct NameMismatch {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[error("Could not downcast into {r#type}, received {value}")]
+#[error("Could not downcast into {src}, received {dst}")]
 pub struct Downcast {
-    value: String,
-    r#type: &'static str,
+    src: &'static str,
+    dst: &'static str,
+}
+
+impl Downcast {
+    pub fn new<Src, Dst>() -> Self {
+        let src = std::any::type_name::<Src>();
+        let dst = std::any::type_name::<Dst>();
+        Self { src, dst }
+    }
 }

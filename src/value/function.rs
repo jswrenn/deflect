@@ -13,11 +13,11 @@ impl<'value, 'dwarf, R> Function<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    pub(crate) unsafe fn new(
+    pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Function<'dwarf, R>,
-    ) -> Self {
-        Self { value, schema }
+    ) -> Result<Self, crate::err::Error> {
+        Ok(Self { value, schema })
     }
 }
 

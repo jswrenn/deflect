@@ -29,15 +29,15 @@ where
         let expected = std::any::type_name::<T>();
         if name.to_slice()? != expected.as_bytes() {
             let actual = name.to_string_lossy()?.to_string();
-            Err(crate::err::ErrorKind::name_mismatch(expected, actual))?;
+            Err(crate::err::Kind::name_mismatch(expected, actual))?;
         }
 
         let size: usize = crate::get_size(&entry)?
             .try_into()
-            .map_err(crate::err::ErrorKind::TryFromInt)?;
+            .map_err(crate::err::Kind::TryFromInt)?;
         let expected = core::mem::size_of::<T>();
         if size != expected {
-            Err(crate::err::ErrorKind::size_mismatch(expected, size))?;
+            Err(crate::err::Kind::size_mismatch(expected, size))?;
         }
 
         Ok(Self {

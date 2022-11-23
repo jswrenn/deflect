@@ -20,7 +20,7 @@ where
     }
 
     /// The fields of this variant.
-    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::err::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::error::Error> {
         let fields = self.schema.fields()?;
         Ok(super::Fields::new(fields, self.value))
     }

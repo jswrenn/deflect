@@ -1,85 +1,85 @@
-use std::fmt;
+//! Reflections of Rust types.
 
-mod array;
-mod atom;
+use std::{fmt, primitive};
+
+mod array_impl;
 mod data;
-mod r#enum;
+mod enum_impl;
 mod field;
 mod fields;
 mod function;
 mod name;
 mod offset;
 mod pointer;
-mod slice;
-mod r#struct;
+mod slice_impl;
+mod struct_impl;
 mod variant;
 mod variants;
 
-pub use array::Array;
-pub use atom::Atom;
+pub use array_impl::array;
 pub use data::Data;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
 pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
-pub use r#enum::Enum;
+pub use enum_impl::Enum;
 pub use r#field::Field;
-pub use r#struct::Struct;
+pub use struct_impl::Struct;
 pub use r#variant::Variant;
-pub use slice::Slice;
+pub use slice_impl::slice;
 pub use variants::{Variants, VariantsIter};
 
-/// A language type.
+/// A reflected language type.
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 #[non_exhaustive]
 pub enum Type<'dwarf, R>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = primitive::usize>,
 {
-    /// A [`bool`].
-    bool(Atom<'dwarf, bool, R>),
-    /// A [`char`].
-    char(Atom<'dwarf, char, R>),
-    /// A [`f32`].
-    f32(Atom<'dwarf, f32, R>),
-    /// A [`f64`].
-    f64(Atom<'dwarf, f64, R>),
-    /// A [`i8`].
-    i8(Atom<'dwarf, i8, R>),
-    /// A [`i16`].
-    i16(Atom<'dwarf, i16, R>),
-    /// A [`i32`].
-    i32(Atom<'dwarf, i32, R>),
-    /// A [`i64`].
-    i64(Atom<'dwarf, i64, R>),
-    /// A [`i128`].
-    i128(Atom<'dwarf, i128, R>),
-    /// A [`isize`].
-    isize(Atom<'dwarf, isize, R>),
-    /// A [`u8`].
-    u8(Atom<'dwarf, u8, R>),
-    /// A [`u16`].
-    u16(Atom<'dwarf, u16, R>),
-    /// A [`u32`].
-    u32(Atom<'dwarf, u32, R>),
-    /// A [`u64`].
-    u64(Atom<'dwarf, u64, R>),
-    /// A [`u128`].
-    u128(Atom<'dwarf, u128, R>),
-    /// A [`usize`].
-    usize(Atom<'dwarf, usize, R>),
-    /// A [`()`].
-    unit(Atom<'dwarf, (), R>),
-    /// An array.
-    Array(Array<'dwarf, R>),
-    /// A slice.
-    Slice(Slice<'dwarf, R>),
-    /// A `struct`.
-    Struct(r#struct::Struct<'dwarf, R>),
-    /// An `enum`.
-    Enum(r#enum::Enum<'dwarf, R>),
+    /// A reflected [`prim@bool`].
+    bool(bool<'dwarf, R>),
+    /// A reflected [`prim@char`].
+    char(char<'dwarf, R>),
+    /// A reflected [`prim@f32`].
+    f32(f32<'dwarf, R>),
+    /// A reflected [`prim@f64`].
+    f64(f64<'dwarf, R>),
+    /// A reflected [`prim@i8`].
+    i8(i8<'dwarf, R>),
+    /// A reflected [`prim@i16`].
+    i16(i16<'dwarf, R>),
+    /// A reflected [`prim@i32`].
+    i32(i32<'dwarf, R>),
+    /// A reflected [`prim@i64`].
+    i64(i64<'dwarf, R>),
+    /// A reflected [`prim@i128`].
+    i128(i128<'dwarf, R>),
+    /// A reflected [`prim@isize`].
+    isize(isize<'dwarf, R>),
+    /// A reflected [`prim@u8`].
+    u8(u8<'dwarf, R>),
+    /// A reflected [`prim@u16`].
+    u16(u16<'dwarf, R>),
+    /// A reflected [`prim@u32`].
+    u32(u32<'dwarf, R>),
+    /// A reflected [`prim@u64`].
+    u64(u64<'dwarf, R>),
+    /// A reflected [`prim@u128`].
+    u128(u128<'dwarf, R>),
+    /// A reflected [`prim@usize`].
+    usize(usize<'dwarf, R>),
+    /// A reflected [`()`][prim@unit].
+    unit(unit<'dwarf, R>),
+    /// A reflected [`[T; N]`][prim@array].
+    array(array<'dwarf, R>),
+    /// A reflected [`&[T]`][prim@slice].
+    slice(slice<'dwarf, R>),
+    /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
+    Struct(Struct<'dwarf, R>),
+    /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
+    Enum(Enum<'dwarf, R>),
     /// A shared reference type.
     SharedRef(Pointer<'dwarf, pointer::Shared, R>),
     /// A unique reference type.
@@ -88,57 +88,51 @@ where
     ConstPtr(Pointer<'dwarf, pointer::Const, R>),
     /// A `mut` pointer type.
     MutPtr(Pointer<'dwarf, pointer::Mut, R>),
-    /// A function type.
+    /// A reflected [`fn`][prim@fn].
     Function(function::Function<'dwarf, R>),
 }
 
 impl<'dwarf, R> Type<'dwarf, R>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
     pub(crate) fn from_die(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         Ok(match entry.tag() {
             crate::gimli::DW_TAG_base_type => {
-                if let name = Name::from_die(dwarf, unit, &entry)? {
-                    let name = name.to_slice()?;
-                    match name.as_ref() {
-                        b"bool" => Self::bool(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"char" => Self::char(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"f32" => Self::f32(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"f64" => Self::f64(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"i8" => Self::i8(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"i16" => Self::i16(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"i32" => Self::i32(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"i64" => Self::i64(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"i128" => Self::i128(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"isize" => Self::isize(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"u8" => Self::u8(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"u16" => Self::u16(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"u32" => Self::u32(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"u64" => Self::u64(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"u128" => Self::u128(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"usize" => Self::usize(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        b"()" => Self::unit(Atom::from_dw_tag_base_type(dwarf, unit, entry)?),
-                        _ => unimplemented!(
-                            "unhandled primitive: {:#?}",
-                            crate::debug::DebugEntry::new(dwarf, unit, &entry)
-                        ),
-                    }
-                } else {
-                    unimplemented!(
+                let name = Name::from_die(dwarf, unit, &entry)?;
+                let name = name.to_slice()?;
+                match name.as_ref() {
+                    b"bool" => Self::bool(bool::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"char" => Self::char(char::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"f32" => Self::f32(f32::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"f64" => Self::f64(f64::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"i8" => Self::i8(i8::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"i16" => Self::i16(i16::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"i32" => Self::i32(i32::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"i64" => Self::i64(i64::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"i128" => Self::i128(i128::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"isize" => Self::isize(isize::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"u8" => Self::u8(u8::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"u16" => Self::u16(u16::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"u32" => Self::u32(u32::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"u64" => Self::u64(u64::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"u128" => Self::u128(u128::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"usize" => Self::usize(usize::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    b"()" => Self::unit(unit::from_dw_tag_base_type(dwarf, unit, entry)?),
+                    _ => unimplemented!(
                         "unhandled primitive: {:#?}",
                         crate::debug::DebugEntry::new(dwarf, unit, &entry)
-                    )
+                    ),
                 }
             }
             crate::gimli::DW_TAG_structure_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
                 if name.to_slice()?.starts_with(b"&[") {
-                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
+                    return Ok(Self::slice(slice::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
                 }
@@ -156,23 +150,23 @@ where
                 }
 
                 if let Some(_variants) = variants {
-                    Self::Enum(r#enum::Enum::from_dw_tag_structure_type(
+                    Self::Enum(Enum::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?)
                 } else {
-                    Self::Struct(r#struct::Struct::from_dw_tag_structure_type(
+                    Self::Struct(Struct::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?)
                 }
             }
             crate::gimli::DW_TAG_enumeration_type => Self::Enum(
-                r#enum::Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?,
+                Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?,
             ),
             crate::gimli::DW_TAG_pointer_type => {
                 let name = Name::from_die(dwarf, unit, &entry)
                     .map(Some)
                     .or_else(|err| {
-                        if let crate::err::Kind::MissingAttr(_) = err.kind {
+                        if let crate::error::Kind::MissingAttr(_) = err.kind {
                             Ok(None)
                         } else {
                             Err(err)
@@ -214,7 +208,7 @@ where
                             target,
                         ))
                     } else {
-                        return Err(crate::err::Kind::invalid_attr(crate::gimli::DW_AT_name).into());
+                        return Err(crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into());
                     }
                 } else {
                     // the `data_ptr` field of slices points to a pointer type that doesn't have a name.
@@ -225,7 +219,7 @@ where
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
             }
             crate::gimli::DW_TAG_array_type => {
-                Self::Array(Array::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
+                Self::array(array::from_dw_tag_array_type(dwarf, unit, entry)?)
             }
             otherwise => {
                 let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
@@ -238,7 +232,7 @@ where
         })
     }
 
-    pub fn size(&self) -> Result<u64, crate::err::Error> {
+    pub fn size(&self) -> Result<std::primitive::u64, crate::error::Error> {
         match self {
             Self::bool(v) => Ok(v.size()),
             Self::char(v) => Ok(v.size()),
@@ -257,22 +251,22 @@ where
             Self::u128(v) => Ok(v.size()),
             Self::usize(v) => Ok(v.size()),
             Self::unit(v) => Ok(v.size()),
-            Self::Array(v) => v.size(),
-            Self::Slice(v) => v.size(),
+            Self::array(v) => v.bytes(),
+            Self::slice(v) => v.size(),
             Self::Struct(v) => v.size(),
             Self::Enum(v) => v.size(),
             Self::Function(_) => Ok(0),
-            Self::SharedRef(_) => Ok(std::mem::size_of::<usize>() as _),
-            Self::UniqueRef(_) => Ok(std::mem::size_of::<usize>() as _),
-            Self::ConstPtr(_) => Ok(std::mem::size_of::<usize>() as _),
-            Self::MutPtr(_) => Ok(std::mem::size_of::<usize>() as _),
+            Self::SharedRef(_) => Ok(std::mem::size_of::<std::primitive::usize>() as _),
+            Self::UniqueRef(_) => Ok(std::mem::size_of::<std::primitive::usize>() as _),
+            Self::ConstPtr(_) => Ok(std::mem::size_of::<std::primitive::usize>() as _),
+            Self::MutPtr(_) => Ok(std::mem::size_of::<std::primitive::usize>() as _),
         }
     }
 }
 
 impl<'value, 'dwarf, R> fmt::Debug for Type<'dwarf, R>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -293,8 +287,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
-            Self::Array(v) => v.fmt(f),
-            Self::Slice(v) => v.fmt(f),
+            Self::array(v) => v.fmt(f),
+            Self::slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
@@ -308,7 +302,7 @@ where
 
 impl<'value, 'dwarf, R> fmt::Display for Type<'dwarf, R>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -329,8 +323,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
-            Self::Array(v) => v.fmt(f),
-            Self::Slice(v) => v.fmt(f),
+            Self::array(v) => v.fmt(f),
+            Self::slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::SharedRef(v) => v.fmt(f),
@@ -340,5 +334,213 @@ where
             Self::ConstPtr(v) => v.fmt(f),
             Self::MutPtr(v) => v.fmt(f),
         }
+    }
+}
+
+macro_rules! generate_primitive {
+    ($($t:ident,)*) => {
+        $(
+            generate_primitive!(@
+                $t,
+                concat!(
+                    "A schema for [`",
+                    stringify!($t),
+                    "`][std::primitive::",
+                    stringify!($t),
+                    "]."
+                )
+            );
+        )*
+    };
+    (@ $t:ident, $doc:expr) => {
+        #[doc = $doc]
+        #[allow(non_camel_case_types)]
+        #[derive(Clone)]
+        pub struct $t<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = std::primitive::usize>,
+        {
+            dwarf: &'dwarf crate::gimli::Dwarf<R>,
+            unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
+            entry: crate::gimli::UnitOffset,
+        }
+
+        impl<'dwarf, R> $t<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = std::primitive::usize>,
+        {
+            pub(crate) fn from_dw_tag_base_type(
+                dwarf: &'dwarf crate::gimli::Dwarf<R>,
+                unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
+                entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+            ) -> Result<Self, crate::error::Error> {
+                crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
+
+                let name = Name::from_die(dwarf, unit, &entry)?;
+                let expected = std::any::type_name::<std::primitive::$t>();
+                if name.to_slice()? != expected.as_bytes() {
+                    let actual = name.to_string_lossy()?.to_string();
+                    Err(crate::error::Kind::name_mismatch(expected, actual))?;
+                }
+
+                let size: std::primitive::usize = crate::get_size(&entry)?
+                    .try_into()
+                    .map_err(crate::error::Kind::TryFromInt)?;
+                let expected = core::mem::size_of::<std::primitive::$t>();
+                if size != expected {
+                    Err(crate::error::Kind::size_mismatch(expected, size))?;
+                }
+
+                Ok(Self {
+                    dwarf,
+                    unit,
+                    entry: entry.offset()
+                })
+            }
+
+
+            /// The size of this type.
+            pub fn name(&self) -> &'static str {
+                std::any::type_name::<std::primitive::$t>()
+            }
+
+            /// The size of this type.
+            pub fn size(&self) -> std::primitive::u64 {
+                std::mem::size_of::<std::primitive::$t>() as _
+            }
+
+            /// The minimum alignment of this type.
+            pub fn align(&self) -> std::primitive::u64 {
+                std::mem::align_of::<std::primitive::$t>() as _
+            }
+        }
+
+        impl<'dwarf, R> std::fmt::Debug for $t<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = std::primitive::usize>,
+        {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let entry = self.unit.entry(self.entry).map_err(crate::fmt_err)?;
+                let mut debug_tuple = f.debug_tuple(stringify!($t));
+                debug_tuple.field(&crate::debug::DebugEntry::new(
+                    self.dwarf,
+                    self.unit,
+                    &entry,
+                ));
+                debug_tuple.finish()
+            }
+        }
+
+        impl<'dwarf, R> std::fmt::Display for $t<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = std::primitive::usize>,
+        {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.name().fmt(f)
+            }
+        }
+    };
+}
+
+generate_primitive! {
+    bool,
+    char,
+    f32,
+    f64,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    isize,
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    usize,
+}
+
+/// A schema for [`()`][prim@unit].
+#[allow(non_camel_case_types)]
+#[derive(Clone)]
+pub struct unit<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    dwarf: &'dwarf crate::gimli::Dwarf<R>,
+    unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
+    entry: crate::gimli::UnitOffset,
+}
+
+impl<'dwarf, R> unit<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    pub(crate) fn from_dw_tag_base_type(
+        dwarf: &'dwarf crate::gimli::Dwarf<R>,
+        unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
+        entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
+    ) -> Result<Self, crate::error::Error> {
+        crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
+
+        let name = Name::from_die(dwarf, unit, &entry)?;
+        let expected = std::any::type_name::<()>();
+        if name.to_slice()? != expected.as_bytes() {
+            let actual = name.to_string_lossy()?.to_string();
+            Err(crate::error::Kind::name_mismatch(expected, actual))?;
+        }
+
+        let size: std::primitive::usize = crate::get_size(&entry)?
+            .try_into()
+            .map_err(crate::error::Kind::TryFromInt)?;
+        let expected = core::mem::size_of::<()>();
+        if size != expected {
+            Err(crate::error::Kind::size_mismatch(expected, size))?;
+        }
+
+        Ok(Self {
+            dwarf,
+            unit,
+            entry: entry.offset(),
+        })
+    }
+
+    /// The size of this type.
+    pub fn name(&self) -> &'static str {
+        std::any::type_name::<()>()
+    }
+
+    /// The size of this type.
+    pub fn size(&self) -> std::primitive::u64 {
+        std::mem::size_of::<()>() as _
+    }
+
+    /// The minimum alignment of this type.
+    pub fn align(&self) -> std::primitive::u64 {
+        std::mem::align_of::<()>() as _
+    }
+}
+
+impl<'dwarf, R> std::fmt::Debug for unit<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let entry = self.unit.entry(self.entry).map_err(crate::fmt_err)?;
+        let mut debug_tuple = f.debug_tuple(stringify!($t));
+        debug_tuple.field(&crate::debug::DebugEntry::new(
+            self.dwarf, self.unit, &entry,
+        ));
+        debug_tuple.finish()
+    }
+}
+
+impl<'dwarf, R> std::fmt::Display for unit<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.name().fmt(f)
     }
 }

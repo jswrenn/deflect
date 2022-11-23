@@ -1,7 +1,7 @@
 use super::Name;
 use std::fmt;
 
-/// A function type.
+/// A schema for [`fn`][prim@fn].
 #[derive(Clone)]
 pub struct Function<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -21,7 +21,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_subroutine_type)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -45,7 +45,7 @@ where
     }
 
     /// The name of this type.
-    pub fn name(&self) -> Result<Name<R>, crate::err::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
         Ok(Name::from_die(self.dwarf(), self.unit(), self.entry())?)
     }
 }

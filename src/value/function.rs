@@ -16,7 +16,7 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Function<'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         Ok(Self { value, schema })
     }
 }

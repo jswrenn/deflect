@@ -1,18 +1,19 @@
 use super::Name;
 use std::fmt;
 
-/// A Rust-like `struct`.
+/// A schema for [`&[T]`][prim@slice].
 #[derive(Clone)]
-pub struct Slice<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+#[allow(non_camel_case_types)]
+pub struct slice<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    r#struct: super::Struct<'dwarf, R>,
+    Struct: super::Struct<'dwarf, R>,
     data_ptr: super::Field<'dwarf, R>,
     length: super::Field<'dwarf, R>,
 }
 
-impl<'dwarf, R> Slice<'dwarf, R>
+impl<'dwarf, R> slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -21,7 +22,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
 
         let name = Name::from_die(dwarf, unit, &entry)?;
@@ -29,18 +30,18 @@ where
         let name = name.to_slice()?;
         if !(name.starts_with(b"&[") && name.ends_with(b"]")) {
             let actual = String::from_utf8_lossy(name.as_ref()).to_string();
-            Err(crate::err::Kind::name_mismatch("&[T]", actual))?;
+            Err(crate::error::Kind::name_mismatch("&[T]", actual))?;
         };
 
-        let r#struct = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
-        let mut fields = r#struct.fields()?;
+        let Struct = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
+        let mut fields = Struct.fields()?;
         let mut fields = fields.iter()?;
 
         let data_ptr = fields.try_next()?.unwrap();
         let length = fields.try_next()?.unwrap();
 
         Ok(Self {
-            r#struct,
+            Struct,
             data_ptr,
             length,
         })
@@ -49,19 +50,19 @@ where
     /// The [DWARF](crate::gimli::Dwarf) sections that this `Struct`'s debuginfo belongs to.
     #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
-        self.r#struct.dwarf()
+        self.Struct.dwarf()
     }
 
     /// The DWARF [unit][crate::gimli::Unit] that this `Struct`'s debuginfo belongs to.
     #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
-        self.r#struct.unit()
+        self.Struct.unit()
     }
 
     /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Struct` abstracts over.
     #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
-        &self.r#struct.entry()
+        &self.Struct.entry()
     }
 
     /// The `data_ptr` field of this slice.
@@ -75,7 +76,7 @@ where
     }
 
     /// The element type of this slice.
-    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::err::Error> {
+    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
         if let super::Type::MutPtr(r#ref) = self.data_ptr().r#type()? {
             return r#ref.r#type();
         }
@@ -83,17 +84,17 @@ where
     }
 
     /// The size of this slice, in bytes.
-    pub fn size(&self) -> Result<u64, crate::err::Error> {
+    pub fn size(&self) -> Result<u64, crate::error::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
     /// The alignment of this slice, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::err::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::error::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 }
 
-impl<'dwarf, R> fmt::Debug for Slice<'dwarf, R>
+impl<'dwarf, R> fmt::Debug for slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -108,7 +109,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Slice<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

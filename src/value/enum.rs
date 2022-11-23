@@ -16,14 +16,14 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Enum<'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         let size = schema.size()?.try_into()?;
         let value = &value[..size];
         Ok(Self { schema, value })
     }
 
     /// The variant of this enum.
-    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::err::Error> {
+    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::error::Error> {
         let mut default = None;
         let mut matched = None;
 
@@ -72,7 +72,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.name().unwrap())?;
+        self.name().fmt(f)?;
         f.write_str("::")?;
         self.variant()
             .expect("could not reflect into variant")

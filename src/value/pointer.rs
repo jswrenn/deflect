@@ -15,7 +15,7 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Pointer<'dwarf, K, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         Ok(Self { schema, value })
     }
 }
@@ -26,14 +26,14 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// The reflected value behind this reference.
-    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::err::Error>
+    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::error::Error>
     where
         K: crate::schema::Reference,
     {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?;
-        let size = size.try_into().map_err(crate::err::Kind::TryFromInt)?;
+        let size = size.try_into().map_err(crate::error::Kind::TryFromInt)?;
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
         unsafe { super::Value::with_type(r#type, value) }
@@ -45,11 +45,11 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// The unreflected value behind this reference.
-    pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::err::Error> {
+    pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::error::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?;
-        let size = size.try_into().map_err(crate::err::Kind::TryFromInt)?;
+        let size = size.try_into().map_err(crate::error::Kind::TryFromInt)?;
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
         Ok(value)

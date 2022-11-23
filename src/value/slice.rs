@@ -5,7 +5,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     value: crate::Bytes<'value>,
-    schema: crate::schema::Slice<'dwarf, R>,
+    schema: crate::schema::slice<'dwarf, R>,
 }
 
 impl<'value, 'dwarf, R> Slice<'value, 'dwarf, R>
@@ -14,32 +14,31 @@ where
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::Slice<'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+        schema: crate::schema::slice<'dwarf, R>,
+    ) -> Result<Self, crate::error::Error> {
         Ok(Self { value, schema })
     }
 
-    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::err::Error> {
+    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::error::Error> {
         let field = unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value) };
         let value = field.value()?;
         let value: super::Pointer<crate::schema::Mut, _> = value.try_into().unwrap();
-        let ptr = unsafe { value.deref_raw()? };
+        let ptr = value.deref_raw()?;
         Ok(ptr)
     }
 
-    pub fn len(&self) -> Result<usize, crate::err::Error> {
+    pub fn len(&self) -> Result<usize, crate::error::Error> {
         let field = unsafe { super::Field::new(self.schema.length().clone(), self.value) };
-        let value = field.value().unwrap();
-        let atom: super::Atom<usize, _> = value.try_into().map_err(crate::err::Kind::Downcast)?;
-        let len: &usize = atom.try_into().unwrap();
-        Ok(*len)
+        let value = field.value()?;
+        let len: usize = value.try_into()?;
+        Ok(len)
     }
 
     pub fn iter(
         &self,
     ) -> Result<
-        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::err::Error>>,
-        crate::err::Error,
+        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::error::Error>>,
+        crate::error::Error,
     > {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;

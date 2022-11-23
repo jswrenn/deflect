@@ -1,7 +1,7 @@
 use super::Name;
 use std::{borrow::Cow, fmt};
 
-/// A variant of an [enum][super::Enum].
+/// A variant of an [`enum`][super::Enum].
 #[derive(Clone)]
 pub struct Variant<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
@@ -50,21 +50,21 @@ where
     }
 
     /// The name of this variant.
-    pub fn name(&self) -> Result<Name<R>, crate::err::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
         Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 
     /// The size of this variant, in bytes.
-    pub fn size(&self) -> Result<Option<u64>, crate::err::Error> {
+    pub fn size(&self) -> Result<Option<u64>, crate::error::Error> {
         Ok(crate::get_size_opt(self.entry())?)
     }
 
     /// The alignment of this variant, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::err::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::error::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 
-    pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::err::Error> {
+    pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::error::Error> {
         crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
@@ -73,7 +73,7 @@ where
     }
 
     /// The fields of this variant.
-    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::err::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::error::Error> {
         let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
     }

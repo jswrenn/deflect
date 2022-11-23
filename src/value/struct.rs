@@ -15,12 +15,12 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Struct<'dwarf, R>,
-    ) -> Result<Self, crate::err::Error> {
+    ) -> Result<Self, crate::error::Error> {
         Ok(Self { schema, value })
     }
 
     /// The fields of this struct.
-    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::err::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::error::Error> {
         let fields = self.schema.fields()?;
         Ok(super::Fields::new(fields, self.value))
     }

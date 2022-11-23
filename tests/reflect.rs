@@ -11,7 +11,7 @@ where
 }
 
 #[test]
-fn phantom_data() -> Result<(), deflect::Error> {
+fn phantom_data() -> Result<(), deflect::error::Error> {
     use std::marker::PhantomData;
     let erased: &dyn deflect::Reflect = &PhantomData::<usize>;
     let context = deflect::current_exe_debuginfo();
@@ -21,7 +21,7 @@ fn phantom_data() -> Result<(), deflect::Error> {
 }
 
 #[test]
-fn unit_struct() -> Result<(), deflect::Error> {
+fn unit_struct() -> Result<(), deflect::error::Error> {
     struct UnitStruct;
     let erased: &dyn deflect::Reflect = &UnitStruct;
     let context = deflect::current_exe_debuginfo();
@@ -31,7 +31,7 @@ fn unit_struct() -> Result<(), deflect::Error> {
 }
 
 #[test]
-fn tuple_struct() -> Result<(), deflect::Error> {
+fn tuple_struct() -> Result<(), deflect::error::Error> {
     struct TupleStruct(u8);
     let erased: &dyn deflect::Reflect = &TupleStruct(42);
     let context = deflect::current_exe_debuginfo();
@@ -41,7 +41,7 @@ fn tuple_struct() -> Result<(), deflect::Error> {
 }
 
 #[test]
-fn braced_struct() -> Result<(), deflect::Error> {
+fn braced_struct() -> Result<(), deflect::error::Error> {
     struct BracedStruct {
         #[allow(dead_code)]
         foo: u8,
@@ -56,7 +56,7 @@ fn braced_struct() -> Result<(), deflect::Error> {
 
 mod r#ref {
     #[test]
-    fn unit_struct() -> Result<(), deflect::Error> {
+    fn unit_struct() -> Result<(), deflect::error::Error> {
         struct UnitStruct;
         let erased: &dyn deflect::Reflect = &UnitStruct;
         let context = deflect::current_exe_debuginfo();
@@ -71,7 +71,7 @@ mod primitive {
     use std::{error::Error, ptr};
 
     #[quickcheck_macros::quickcheck]
-    fn unit(n: ()) -> Result<(), deflect::Error> {
+    fn unit(n: ()) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -84,7 +84,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn bool(n: bool) -> Result<(), deflect::Error> {
+    fn bool(n: bool) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -97,7 +97,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn char(n: char) -> Result<(), deflect::Error> {
+    fn char(n: char) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -110,7 +110,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn f32(n: f32) -> Result<(), deflect::Error> {
+    fn f32(n: f32) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -123,7 +123,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn f64(n: f64) -> Result<(), deflect::Error> {
+    fn f64(n: f64) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -136,7 +136,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn i8(n: i8) -> Result<(), deflect::Error> {
+    fn i8(n: i8) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -149,7 +149,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn i16(n: i16) -> Result<(), deflect::Error> {
+    fn i16(n: i16) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -162,7 +162,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn i32(n: i32) -> Result<(), deflect::Error> {
+    fn i32(n: i32) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -175,7 +175,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn i64(n: i64) -> Result<(), deflect::Error> {
+    fn i64(n: i64) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -188,7 +188,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn i128(n: i128) -> Result<(), deflect::Error> {
+    fn i128(n: i128) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -201,7 +201,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn isize(n: isize) -> Result<(), deflect::Error> {
+    fn isize(n: isize) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -227,7 +227,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn u16(n: u16) -> Result<(), deflect::Error> {
+    fn u16(n: u16) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -240,7 +240,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn u32(n: u32) -> Result<(), deflect::Error> {
+    fn u32(n: u32) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -253,7 +253,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn u64(n: u64) -> Result<(), deflect::Error> {
+    fn u64(n: u64) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -266,7 +266,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn u128(n: u128) -> Result<(), deflect::Error> {
+    fn u128(n: u128) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;
@@ -279,7 +279,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn usize(n: usize) -> Result<(), deflect::Error> {
+    fn usize(n: usize) -> Result<(), deflect::error::Error> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::current_exe_debuginfo();
         let value = erased.reflect(&context)?;

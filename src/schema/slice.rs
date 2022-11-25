@@ -4,7 +4,7 @@ use std::fmt;
 /// A schema for [`&[T]`][prim@slice].
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct slice<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Slice<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -13,7 +13,7 @@ where
     length: super::Field<'dwarf, R>,
 }
 
-impl<'dwarf, R> slice<'dwarf, R>
+impl<'dwarf, R> Slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -94,7 +94,7 @@ where
     }
 }
 
-impl<'dwarf, R> fmt::Debug for slice<'dwarf, R>
+impl<'dwarf, R> fmt::Debug for Slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for slice<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for Slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

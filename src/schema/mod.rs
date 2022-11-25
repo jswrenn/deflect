@@ -2,32 +2,32 @@
 
 use std::{fmt, primitive};
 
-mod array_impl;
+mod array;
 mod data;
-mod enum_impl;
+mod r#enum;
 mod field;
 mod fields;
 mod function;
 mod name;
 mod offset;
 mod pointer;
-mod slice_impl;
-mod struct_impl;
+mod slice;
+mod r#struct;
 mod variant;
 mod variants;
 
-pub use array_impl::array;
+pub use array::Array;
 pub use data::Data;
-pub use enum_impl::Enum;
+pub use r#enum::Enum;
+pub use r#field::Field;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
 pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
-pub use r#field::Field;
 pub use r#variant::Variant;
-pub use slice_impl::slice;
-pub use struct_impl::Struct;
+pub use slice::Slice;
+pub use r#struct::Struct;
 pub use variants::{Variants, VariantsIter};
 
 /// A reflected language type.
@@ -73,9 +73,9 @@ where
     /// A reflected [`()`][prim@unit].
     unit(unit<'dwarf, R>),
     /// A reflected [`[T; N]`][prim@array].
-    array(array<'dwarf, R>),
+    array(Array<'dwarf, R>),
     /// A reflected [`&[T]`][prim@slice].
-    slice(slice<'dwarf, R>),
+    slice(Slice<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
     Struct(Struct<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
@@ -132,7 +132,7 @@ where
             crate::gimli::DW_TAG_structure_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
                 if name.to_slice()?.starts_with(b"&[") {
-                    return Ok(Self::slice(slice::from_dw_tag_structure_type(
+                    return Ok(Self::slice(Slice::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
                 }
@@ -217,7 +217,7 @@ where
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
             }
             crate::gimli::DW_TAG_array_type => {
-                Self::array(array::from_dw_tag_array_type(dwarf, unit, entry)?)
+                Self::array(Array::from_dw_tag_array_type(dwarf, unit, entry)?)
             }
             _otherwise => {
                 let _tree = unit.entries_tree(Some(entry.offset())).unwrap();

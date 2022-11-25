@@ -5,7 +5,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     value: crate::Bytes<'value>,
-    schema: crate::schema::slice<'dwarf, R>,
+    schema: crate::schema::Slice<'dwarf, R>,
 }
 
 impl<'value, 'dwarf, R> Slice<'value, 'dwarf, R>
@@ -14,7 +14,7 @@ where
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::slice<'dwarf, R>,
+        schema: crate::schema::Slice<'dwarf, R>,
     ) -> Result<Self, crate::error::Error> {
         Ok(Self { value, schema })
     }

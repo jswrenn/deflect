@@ -1,11 +1,14 @@
 use std::fmt;
 
+/// A reflected [`[T; N]`][prim@array] value.
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
 pub struct Array<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
     value: crate::Bytes<'value>,
-    schema: crate::schema::array<'dwarf, R>,
+    schema: crate::schema::Array<'dwarf, R>,
 }
 
 impl<'value, 'dwarf, R> Array<'value, 'dwarf, R>
@@ -14,7 +17,7 @@ where
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::array<'dwarf, R>,
+        schema: crate::schema::Array<'dwarf, R>,
     ) -> Result<Self, crate::error::Error> {
         let len = schema.n()?;
         let elt_size = schema.t()?.size()?;

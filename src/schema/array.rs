@@ -3,7 +3,7 @@ use std::fmt;
 /// A schema for [`[T; N]`][prim@array].
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct array<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Array<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -12,7 +12,7 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'value, 'dwarf, R> array<'dwarf, R>
+impl<'value, 'dwarf, R> Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -78,7 +78,7 @@ where
     }
 }
 
-impl<'dwarf, R> fmt::Debug for array<'dwarf, R>
+impl<'dwarf, R> fmt::Debug for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -93,7 +93,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for array<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

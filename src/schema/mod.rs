@@ -18,16 +18,16 @@ mod variants;
 
 pub use array::Array;
 pub use data::Data;
-pub use r#enum::Enum;
-pub use r#field::Field;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
 pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
+pub use r#enum::Enum;
+pub use r#field::Field;
+pub use r#struct::Struct;
 pub use r#variant::Variant;
 pub use slice::Slice;
-pub use r#struct::Struct;
 pub use variants::{Variants, VariantsIter};
 
 /// A reflected language type.
@@ -73,9 +73,9 @@ where
     /// A reflected [`()`][prim@unit].
     unit(unit<'dwarf, R>),
     /// A reflected [`[T; N]`][prim@array].
-    array(Array<'dwarf, R>),
+    Array(Array<'dwarf, R>),
     /// A reflected [`&[T]`][prim@slice].
-    slice(Slice<'dwarf, R>),
+    Slice(Slice<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
     Struct(Struct<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
@@ -132,7 +132,7 @@ where
             crate::gimli::DW_TAG_structure_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
                 if name.to_slice()?.starts_with(b"&[") {
-                    return Ok(Self::slice(Slice::from_dw_tag_structure_type(
+                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
                 }
@@ -203,6 +203,14 @@ where
                             Some(name),
                             target,
                         ))
+                    } else if name_as_slice.starts_with(b"fn") {
+                        Self::SharedRef(Pointer::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
                     } else {
                         return Err(
                             crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into()
@@ -217,7 +225,7 @@ where
                 Self::Function(Function::from_dw_tag_subroutine_type(dwarf, unit, entry)?)
             }
             crate::gimli::DW_TAG_array_type => {
-                Self::array(Array::from_dw_tag_array_type(dwarf, unit, entry)?)
+                Self::Array(Array::from_dw_tag_array_type(dwarf, unit, entry)?)
             }
             _otherwise => {
                 let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
@@ -249,8 +257,8 @@ where
             Self::u128(v) => Ok(v.size()),
             Self::usize(v) => Ok(v.size()),
             Self::unit(v) => Ok(v.size()),
-            Self::array(v) => v.bytes(),
-            Self::slice(v) => v.size(),
+            Self::Array(v) => v.bytes(),
+            Self::Slice(v) => v.size(),
             Self::Struct(v) => v.size(),
             Self::Enum(v) => v.size(),
             Self::Function(_) => Ok(0),
@@ -285,8 +293,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
-            Self::array(v) => v.fmt(f),
-            Self::slice(v) => v.fmt(f),
+            Self::Array(v) => v.fmt(f),
+            Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
@@ -321,8 +329,8 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
-            Self::array(v) => v.fmt(f),
-            Self::slice(v) => v.fmt(f),
+            Self::Array(v) => v.fmt(f),
+            Self::Slice(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::SharedRef(v) => v.fmt(f),

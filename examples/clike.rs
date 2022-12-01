@@ -7,7 +7,7 @@ enum TestCLikeEnum {
     C,
 }
 
-fn main() -> Result<(), deflect::Error> {
+fn main() -> Result<(), deflect::error::Error> {
     let erased: &dyn Reflect = &TestCLikeEnum::B;
     let context = deflect::current_exe_debuginfo();
     let value = erased.reflect(&context)?;

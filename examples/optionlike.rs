@@ -5,7 +5,7 @@ enum OptionLike {
     None,
 }
 
-fn main() -> Result<(), deflect::Error> {
+fn main() -> Result<(), deflect::error::Error> {
     let erased: &dyn Reflect = &OptionLike::Some(std::num::NonZeroU8::new(42).unwrap());
     let context = deflect::current_exe_debuginfo();
     let value = erased.reflect(&context)?;

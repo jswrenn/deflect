@@ -16,6 +16,7 @@ fn phantom_data() -> Result<(), deflect::error::Error> {
     let erased: &dyn deflect::Reflect = &PhantomData::<usize>;
     let context = deflect::current_exe_debuginfo();
     let value = erased.reflect(&context)?;
+    let value: deflect::value::Struct<_> = value.try_into()?;
     assert_eq!(value.to_string(), "PhantomData<usize>");
     Ok(())
 }

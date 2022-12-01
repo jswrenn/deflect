@@ -1,13 +1,3 @@
-#![feature(once_cell)]
-#![feature(
-    provide_any,
-    error_generic_member_access,
-    result_flattening,
-    pointer_byte_offsets
-)]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(maybe_uninit_array_assume_init)]
-
 use addr2line::gimli;
 
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
@@ -20,8 +10,9 @@ use std::{
     mem::{self, MaybeUninit},
     ptr::slice_from_raw_parts,
     rc::Rc,
-    sync::LazyLock,
 };
+
+use once_cell::sync::Lazy;
 
 mod debug;
 pub mod error;
@@ -57,13 +48,13 @@ pub fn current_exe_debuginfo() -> CurrentExeContext {
 
     thread_local! {
         pub static CONTEXT: Rc<Context> = {
-            static MMAP: LazyLock<memmap2::Mmap> = LazyLock::new(|| {
+            static MMAP: Lazy<memmap2::Mmap> = Lazy::new(|| {
                 let file = current_binary().unwrap();
 
                 unsafe { memmap2::Mmap::map(&file).unwrap() }
             });
 
-            static OBJECT: LazyLock<object::File<'static, &'static [u8]>> = LazyLock::new(|| {
+            static OBJECT: Lazy<object::File<'static, &'static [u8]>> = Lazy::new(|| {
                 object::File::parse(MMAP.as_ref()).unwrap()
             });
             Rc::new(addr2line::Context::new(&*OBJECT).unwrap())

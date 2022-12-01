@@ -11,7 +11,7 @@ enum OptionLike {
     None,
 }
 
-fn main() -> Result<(), deflect::Error> {
+fn main() -> Result<(), deflect::error::Error> {
     let x = 42;
     let pandapandapanda = OptionLike::Some(CLike::B);
     let foo = async move {

@@ -46,6 +46,10 @@ where
 
     /// The name of this type.
     pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
+        println!(
+            "{:?}",
+            crate::debug::DebugEntry::new(self.dwarf, self.unit, &self.entry)
+        );
         Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 }
@@ -70,6 +74,6 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.name().map_err(crate::fmt_err)?.fmt(f)
+        f.write_str("fn()")
     }
 }

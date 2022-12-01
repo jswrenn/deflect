@@ -1,10 +1,10 @@
-use std::backtrace::Backtrace;
+use std::backtrace::Backtrace as Stacktrace;
 
 #[derive(thiserror::Error, Debug)]
-#[error("{}\n{}", self.kind, self.backtrace)]
+#[error("{}\n{}", self.kind, self.stacktrace)]
 pub struct Error {
     pub kind: Kind,
-    pub backtrace: Backtrace,
+    pub stacktrace: Stacktrace,
 }
 
 impl<E> From<E> for Error
@@ -14,7 +14,7 @@ where
     fn from(error: E) -> Self {
         Self {
             kind: error.into(),
-            backtrace: std::backtrace::Backtrace::capture(),
+            stacktrace: std::backtrace::Backtrace::capture(),
         }
     }
 }

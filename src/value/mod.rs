@@ -53,10 +53,10 @@ where
             crate::schema::Type::u128(schema) => schema.with_bytes(value).map(Self::u128),
             crate::schema::Type::usize(schema) => schema.with_bytes(value).map(Self::usize),
             crate::schema::Type::unit(schema) => schema.with_bytes(value).map(Self::unit),
-            crate::schema::Type::slice(schema) => {
+            crate::schema::Type::Slice(schema) => {
                 Slice::with_schema(value, schema).map(Self::Slice)
             }
-            crate::schema::Type::array(schema) => {
+            crate::schema::Type::Array(schema) => {
                 Array::with_schema(value, schema).map(Self::Array)
             }
             crate::schema::Type::Struct(schema) => {
@@ -150,6 +150,22 @@ where
             Self::UniqueRef(v) => v.fmt(f),
             Self::ConstPtr(v) => v.fmt(f),
             Self::MutPtr(v) => v.fmt(f),
+        }
+    }
+}
+
+/// Attempt to downcast a `Value<'value, 'dwarf, R>` into a `Struct<'value, 'dwarf, R>`.
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for Struct<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::Struct(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
         }
     }
 }
@@ -649,5 +665,122 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("()")
+    }
+}
+
+impl<'value, 'dwarf, R> From<unit<'value, 'dwarf, R>> for Value<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    fn from(value: unit<'value, 'dwarf, R>) -> Self {
+        crate::Value::unit(value)
+    }
+}
+
+impl<'value, 'dwarf, R> From<unit<'value, 'dwarf, R>> for &'value ()
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    fn from(atom: unit<'value, 'dwarf, R>) -> Self {
+        atom.value()
+    }
+}
+
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'a unit<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::error::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for unit<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for &'value ()
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(value.value())
+        } else {
+            Err(crate::error::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a Value<'value, 'dwarf, R>> for ()
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(*value.value())
+        } else {
+            Err(crate::error::Downcast::new::<
+                &'a Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for &'value ()
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(value.value())
+        } else {
+            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
+    }
+}
+
+impl<'value, 'dwarf, R> TryFrom<Value<'value, 'dwarf, R>> for ()
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let Value::unit(value) = value {
+            Ok(*value.value())
+        } else {
+            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
+        }
     }
 }

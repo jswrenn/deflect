@@ -60,7 +60,7 @@ where
         let mut fields = self.fields().map_err(crate::fmt_err)?;
         let mut fields = fields.iter().map_err(crate::fmt_err)?;
         while let Some(field) = fields.try_next().map_err(crate::fmt_err)? {
-            let field_name = self.name().map_err(crate::fmt_err)?;
+            let field_name = field.name().map_err(crate::fmt_err)?;
             let field_name = field_name.to_string_lossy().map_err(crate::fmt_err)?;
             let field_value = field.value().map_err(crate::fmt_err)?;
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));

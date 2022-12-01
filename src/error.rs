@@ -36,6 +36,8 @@ pub enum Kind {
     #[error(transparent)]
     NameMismatch(#[from] NameMismatch),
     #[error(transparent)]
+    FileIndexing(#[from] FileIndexing),
+    #[error(transparent)]
     TryFromInt(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     Downcast(#[from] Downcast),
@@ -44,44 +46,48 @@ pub enum Kind {
 }
 
 impl Kind {
-    pub fn downcast(src: &'static str, dst: &'static str) -> Self {
+    pub(crate) fn downcast(src: &'static str, dst: &'static str) -> Self {
         Self::Downcast(Downcast { src, dst })
     }
 
-    pub fn tag_mismatch(expected: crate::gimli::DwTag, actual: crate::gimli::DwTag) -> Self {
+    pub(crate) fn tag_mismatch(expected: crate::gimli::DwTag, actual: crate::gimli::DwTag) -> Self {
         Self::TagMismatch(TagMismatch { expected, actual })
     }
 
-    pub fn missing_attr(attr: crate::gimli::DwAt) -> Self {
+    pub(crate) fn missing_attr(attr: crate::gimli::DwAt) -> Self {
         Self::MissingAttr(MissingAttr { attr })
     }
 
-    pub fn invalid_attr(attr: crate::gimli::DwAt) -> Self {
+    pub(crate) fn invalid_attr(attr: crate::gimli::DwAt) -> Self {
         Self::InvalidAttr(InvalidAttr { attr })
     }
 
-    pub fn missing_child(tag: crate::gimli::DwTag) -> Self {
+    pub(crate) fn missing_child(tag: crate::gimli::DwTag) -> Self {
         Self::MissingChild(MissingChild { tag })
     }
 
-    pub fn missing_entry(offset: crate::gimli::UnitOffset) -> Self {
+    pub(crate) fn missing_entry(offset: crate::gimli::UnitOffset) -> Self {
         Self::MissingEntry(MissingEntry { offset })
     }
 
-    pub fn size_mismatch(expected: usize, actual: usize) -> Self {
+    pub(crate) fn size_mismatch(expected: usize, actual: usize) -> Self {
         Self::SizeMismatch(SizeMismatch { expected, actual })
     }
 
-    pub fn name_mismatch(expected: &'static str, actual: String) -> Self {
+    pub(crate) fn name_mismatch(expected: &'static str, actual: String) -> Self {
         Self::NameMismatch(NameMismatch { expected, actual })
     }
 
-    pub fn try_from_int(err: std::num::TryFromIntError) -> Self {
+    pub(crate) fn try_from_int(err: std::num::TryFromIntError) -> Self {
         Self::TryFromInt(err)
     }
 
-    pub fn gimli(err: crate::gimli::Error) -> Self {
+    pub(crate) fn gimli(err: crate::gimli::Error) -> Self {
         Self::Gimli(err)
+    }
+
+    pub(crate) fn file_indexing() -> Self {
+        Self::FileIndexing(FileIndexing{ _field: () })
     }
 }
 
@@ -105,7 +111,7 @@ pub struct MissingAttr {
 }
 
 impl MissingAttr {
-    pub fn new(attr: crate::gimli::DwAt) -> Self {
+    pub(crate) fn new(attr: crate::gimli::DwAt) -> Self {
         Self { attr }
     }
 }
@@ -117,7 +123,7 @@ pub struct InvalidAttr {
 }
 
 impl InvalidAttr {
-    pub fn new(attr: crate::gimli::DwAt) -> Self {
+    pub(crate) fn new(attr: crate::gimli::DwAt) -> Self {
         Self { attr }
     }
 }
@@ -129,7 +135,7 @@ pub struct MissingChild {
 }
 
 impl MissingChild {
-    pub fn new(tag: crate::gimli::DwTag) -> Self {
+    pub(crate) fn new(tag: crate::gimli::DwTag) -> Self {
         Self { tag }
     }
 }
@@ -141,7 +147,7 @@ pub struct MissingEntry {
 }
 
 impl MissingEntry {
-    pub fn new(offset: crate::gimli::UnitOffset) -> Self {
+    pub(crate) fn new(offset: crate::gimli::UnitOffset) -> Self {
         Self { offset }
     }
 }
@@ -168,9 +174,15 @@ pub struct Downcast {
 }
 
 impl Downcast {
-    pub fn new<Src, Dst>() -> Self {
+    pub(crate) fn new<Src, Dst>() -> Self {
         let src = std::any::type_name::<Src>();
         let dst = std::any::type_name::<Dst>();
         Self { src, dst }
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("could not resolve FileIndex to filename")]
+pub struct FileIndexing {
+    _field: (),
 }

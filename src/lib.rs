@@ -1,8 +1,6 @@
 use addr2line::gimli;
-
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
-
-use anyhow::anyhow;
+use once_cell::sync::Lazy;
 use std::{
     borrow::Cow,
     ffi::c_void,
@@ -11,8 +9,6 @@ use std::{
     ptr::slice_from_raw_parts,
     rc::Rc,
 };
-
-use once_cell::sync::Lazy;
 
 mod debug;
 pub mod error;
@@ -50,7 +46,6 @@ pub fn current_exe_debuginfo() -> CurrentExeContext {
         pub static CONTEXT: Rc<Context> = {
             static MMAP: Lazy<memmap2::Mmap> = Lazy::new(|| {
                 let file = current_binary().unwrap();
-
                 unsafe { memmap2::Mmap::map(&file).unwrap() }
             });
 
@@ -231,16 +226,6 @@ fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
     }
 }
 
-fn get_name<R: crate::gimli::Reader<Offset = usize>>(
-    entry: &crate::gimli::DebuggingInformationEntry<R>,
-    dwarf: &crate::gimli::Dwarf<R>,
-    unit: &crate::gimli::Unit<R, usize>,
-) -> Result<R, crate::error::Kind> {
-    let name = get(entry, crate::gimli::DW_AT_name)?;
-    let name = dwarf.attr_string(unit, name)?;
-    Ok(name)
-}
-
 fn get<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     attr: crate::gimli::DwAt,
@@ -250,7 +235,7 @@ fn get<R: crate::gimli::Reader<Offset = usize>>(
         .ok_or(crate::error::Kind::missing_attr(attr))
 }
 
-pub(crate) fn get_size<R: crate::gimli::Reader<Offset = usize>>(
+fn get_size<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<u64, crate::error::Kind> {
     let size = get(entry, crate::gimli::DW_AT_byte_size)?;
@@ -259,7 +244,7 @@ pub(crate) fn get_size<R: crate::gimli::Reader<Offset = usize>>(
     ))
 }
 
-pub(crate) fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
+fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<Option<u64>, crate::error::Kind> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
@@ -272,7 +257,7 @@ pub(crate) fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
     }
 }
 
-pub(crate) fn get_align<R: crate::gimli::Reader<Offset = usize>>(
+fn get_align<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
 ) -> Result<Option<u64>, crate::error::Kind> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_alignment)?;
@@ -287,7 +272,7 @@ pub(crate) fn get_align<R: crate::gimli::Reader<Offset = usize>>(
     }
 }
 
-pub(crate) fn get_type_ref<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+fn get_type_ref<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 ) -> Result<UnitOffset, crate::error::Kind> {
     if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
@@ -297,7 +282,7 @@ pub(crate) fn get_type_ref<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usiz
     }
 }
 
-pub(crate) fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 ) -> Result<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>, crate::error::Kind> {
@@ -308,24 +293,7 @@ pub(crate) fn get_type_res<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usiz
     }
 }
 
-pub(crate) fn get_type_opt<'entry, 'dwarf, R: crate::gimli::Reader<Offset = usize>>(
-    unit: &'dwarf crate::gimli::Unit<R, usize>,
-    entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-) -> Result<Option<crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>>, crate::error::Kind>
-{
-    let maybe_type = entry.attr_value(crate::gimli::DW_AT_type)?;
-    Ok(if let Some(_type) = maybe_type {
-        if let AttributeValue::UnitRef(offset) = get(entry, crate::gimli::DW_AT_type)? {
-            Some(unit.entry(offset)?)
-        } else {
-            return Err(crate::error::Kind::invalid_attr(crate::gimli::DW_AT_type));
-        }
-    } else {
-        None
-    })
-}
-
-pub(crate) fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
+fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 ) -> Result<UnitOffset, crate::error::Kind> {
     let attr = crate::gimli::DW_AT_type;
@@ -376,22 +344,30 @@ fn get_attr_ref<R: crate::gimli::Reader<Offset = usize>>(
 }
 
 fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
-    file_index: u64,
+    dwarf: &'a crate::gimli::Dwarf<R>,
     unit: &'a crate::gimli::Unit<R>,
-) -> Result<String, anyhow::Error> {
+    file_index: u64,
+) -> Result<String, crate::error::Error> {
     let line_program = unit
         .line_program
         .as_ref()
-        .ok_or(anyhow!("no lineprogram"))?;
+        .ok_or(error::Kind::file_indexing())?;
+    
     let file = line_program
         .header()
         .file(file_index)
-        .ok_or(anyhow!("no such file"))?;
-    let AttributeValue::String(ref bytes) = file.path_name() else {
-        return Err(anyhow!("path name was not a string"));
-    };
-    let path = bytes.to_string_lossy().unwrap().into_owned();
-    Ok(path)
+        .ok_or(error::Kind::file_indexing())?;
+
+    let filename = dwarf.attr_string(unit, file.path_name())?;
+    let filename = filename.to_string_lossy()?;
+    if let Some(dir) = file.directory(line_program.header()) {
+        let dirname = dwarf.attr_string(unit, dir)?;
+        let dirname = dirname.to_string_lossy()?;
+        if !dirname.is_empty() {
+            return Ok(format!("{dirname}/{filename}").into());
+        }
+    }
+    Ok(filename.into_owned().into())
 }
 
 struct DebugDisplay<T>(T);

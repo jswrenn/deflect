@@ -45,7 +45,7 @@ where
     }
 
     /// The element type, `T`, of this [`[T; N]`][prim@array] array.
-    pub fn t(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
+    pub fn elt_type(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
         super::Type::from_die(
             self.dwarf,
             self.unit,
@@ -54,7 +54,7 @@ where
     }
 
     /// The length, `N`, of this [`[T; N]`][prim@array] array.
-    pub fn n(&self) -> Result<u64, crate::error::Error> {
+    pub fn len(&self) -> Result<u64, crate::error::Error> {
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
         let mut children = root.children();
@@ -72,8 +72,8 @@ where
 
     /// The size of this array, in bytes.
     pub fn bytes(&self) -> Result<u64, crate::error::Error> {
-        let len = self.n()?;
-        let elt_size = self.t()?.size()?;
+        let len = self.len()?;
+        let elt_size = self.elt_type()?.size()?;
         Ok(len.checked_mul(elt_size).expect("Computing the size (in bytes) of this slice overflowed when multiplying the length ({len}) by the element size ({elt_size})."))
     }
 }

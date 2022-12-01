@@ -19,8 +19,8 @@ where
         value: crate::Bytes<'value>,
         schema: crate::schema::Array<'dwarf, R>,
     ) -> Result<Self, crate::error::Error> {
-        let len = schema.n()?;
-        let elt_size = schema.t()?.size()?;
+        let len = schema.len()?;
+        let elt_size = schema.elt_type()?.size()?;
         let bytes = len.checked_mul(elt_size).unwrap();
         let bytes = usize::try_from(bytes).unwrap();
         let value = &value[..bytes];
@@ -33,7 +33,7 @@ where
         impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::error::Error>>,
         crate::error::Error,
     > {
-        let elt_type = self.schema.t()?;
+        let elt_type = self.schema.elt_type()?;
         let elt_size = elt_type.size()?;
         let elt_size = usize::try_from(elt_size).unwrap();
         Ok(self

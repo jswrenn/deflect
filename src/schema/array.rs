@@ -74,7 +74,7 @@ where
     pub fn bytes(&self) -> Result<u64, crate::Error> {
         let len = self.len()?;
         let elt_size = self.elt_type()?.size()?;
-        Ok(len.checked_mul(elt_size).expect("Computing the size (in bytes) of this slice overflowed when multiplying the length ({len}) by the element size ({elt_size})."))
+        Ok(len.checked_mul(elt_size).ok_or(crate::error::Kind::Other)?)
     }
 }
 

@@ -74,7 +74,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("&")?;
-        self.deref().unwrap().fmt(f)
+        self.deref().map_err(crate::fmt_err)?.fmt(f)
     }
 }
 
@@ -84,7 +84,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("&mut ")?;
-        self.deref().unwrap().fmt(f)
+        self.deref().map_err(crate::fmt_err)?.fmt(f)
     }
 }
 

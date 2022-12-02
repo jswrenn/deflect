@@ -292,11 +292,6 @@ where
     MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, R>),
 }
 
-fn current_binary() -> Option<std::fs::File> {
-    let file = std::fs::File::open(std::env::current_exe().unwrap()).ok()?;
-    Some(file)
-}
-
 fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     expected: crate::gimli::DwTag,
@@ -381,8 +376,6 @@ fn get_type<'dwarf, R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<UnitOffset, crate::error::Kind> {
     let attr = crate::gimli::DW_AT_type;
     let value = get(entry, attr)?;
-    let _x = entry.attr(attr)?.unwrap();
-
     if let AttributeValue::UnitRef(offset) = value {
         Ok(offset)
     } else {

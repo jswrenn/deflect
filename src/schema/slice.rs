@@ -37,8 +37,8 @@ where
         let mut fields = schema.fields()?;
         let mut fields = fields.iter()?;
 
-        let data_ptr = fields.try_next()?.unwrap();
-        let length = fields.try_next()?.unwrap();
+        let data_ptr = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
+        let length = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
 
         Ok(Self {
             schema,
@@ -79,8 +79,9 @@ where
     pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         if let super::Type::MutPtr(r#ref) = self.data_ptr().r#type()? {
             return r#ref.r#type();
+        } else {
+            unreachable!()
         }
-        panic!()
     }
 
     /// The size of this slice, in bytes.

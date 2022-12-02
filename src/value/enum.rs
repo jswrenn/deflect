@@ -51,7 +51,8 @@ where
             }
         }
 
-        Ok(unsafe { super::Variant::new(matched.or(default).unwrap(), self.value) })
+        let schema = matched.or(default).ok_or(crate::error::Kind::Other)?;
+        Ok(unsafe { super::Variant::new(schema, self.value) })
     }
 }
 
@@ -74,9 +75,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.name().fmt(f)?;
         f.write_str("::")?;
-        self.variant()
-            .expect("could not reflect into variant")
-            .fmt(f)
+        self.variant().map_err(crate::fmt_err)?.fmt(f)
     }
 }
 

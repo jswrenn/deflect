@@ -147,12 +147,12 @@ where
                     )?));
                 }
 
-                let mut tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                let root = tree.root().unwrap();
+                let mut tree = unit.entries_tree(Some(entry.offset()))?;
+                let root = tree.root()?;
                 let mut children = root.children();
                 let mut variants = None;
 
-                while let Some(child) = children.next().unwrap() {
+                while let Some(child) = children.next()? {
                     if child.entry().tag() == crate::gimli::DW_TAG_variant_part {
                         variants = Some(child.entry().clone());
                         break;
@@ -238,12 +238,11 @@ where
                 Self::Array(Array::from_dw_tag_array_type(dwarf, unit, entry)?)
             }
             _otherwise => {
-                let _tree = unit.entries_tree(Some(entry.offset())).unwrap();
-                //let _ = crate::debug::inspect_tree(&mut tree, dwarf, unit);
-                panic!(
+                eprintln!(
                     "{:#?}",
                     &crate::debug::DebugEntry::new(dwarf, unit, &entry,)
                 );
+                return Err(crate::error::Kind::Other.into());
             }
         })
     }

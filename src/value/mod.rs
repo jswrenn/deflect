@@ -527,7 +527,9 @@ macro_rules! generate_primitive {
             unsafe fn with_bytes<'value>(self, bytes: crate::Bytes<'value>) -> Result<$t<'value, 'dwarf, R>, crate::Error> {
                 let size = self.size() as std::primitive::usize;
                 let value = &bytes[..size];
-                let (&[], [value], &[]) = value.align_to() else { panic!() };
+                let (&[], [value], &[]) = value.align_to() else {
+                    return Err(crate::error::Kind::Other.into());
+                };
                 Ok($t {
                     value,
                     schema: self,
@@ -545,7 +547,9 @@ macro_rules! generate_primitive {
             ) -> Result<Self, crate::Error> {
                 let size = schema.size() as std::primitive::usize;
                 let value = &value[..size];
-                let (&[], [value], &[]) = value.align_to() else { panic!() };
+                let (&[], [value], &[]) = value.align_to() else { 
+                    return Err(crate::error::Kind::Other.into());
+                };
                 Ok(Self { schema, value })
             }
 

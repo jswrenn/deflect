@@ -97,11 +97,14 @@ where
                     )));
                 }
                 crate::gimli::DW_TAG_member => continue,
-                other => panic!(
-                    "Cannot find discriminant value in {:?} at {:x?}",
-                    other.static_string(),
-                    entry.offset()
-                ),
+                other => {
+                    eprintln!(
+                        "Cannot find discriminant value in {:?} at {:x?}",
+                        other.static_string(),
+                        entry.offset()
+                    );
+                    return Err(crate::error::Kind::Other.into());
+                }
             }
         }
     }

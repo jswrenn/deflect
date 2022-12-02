@@ -31,9 +31,9 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut debug_list = f.debug_list();
-        let expression = self.expression.take().unwrap();
+        let expression = self.expression.take().ok_or(fmt::Error)?;
         let mut ops = expression.operations(self.unit.encoding());
-        while let Some(op) = ops.next().unwrap() {
+        while let Some(op) = ops.next().map_err(crate::fmt_err)? {
             debug_list.entry(&op);
         }
 
@@ -71,7 +71,7 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut debug_struct = f.debug_struct(&dw_tag_to_string(self.entry.tag()));
         let mut attrs = self.entry.attrs();
-        while let Some(attr) = attrs.next().unwrap() {
+        while let Some(attr) = attrs.next().map_err(crate::fmt_err)? {
             let name = attr.name();
             let value = attr.value();
             if let Ok(value_as_string) = self.dwarf.attr_string(self.unit, value) {
@@ -111,8 +111,8 @@ where
             }
         }
         if self.entry.has_children() {
-            let mut tree = self.unit.entries_tree(Some(self.entry.offset())).unwrap();
-            let root = tree.root().unwrap();
+            let mut tree = self.unit.entries_tree(Some(self.entry.offset())).map_err(crate::fmt_err)?;
+            let root = tree.root().map_err(crate::fmt_err)?;
             let children = RefCell::new(root.children());
             debug_struct.field(
                 "children",
@@ -167,7 +167,7 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut debug_list = f.debug_list();
         let mut iter = self.iter.borrow_mut();
-        while let Some(child) = iter.next().unwrap() {
+        while let Some(child) = iter.next().map_err(crate::fmt_err)? {
             let entry = child.entry();
             debug_list.entry(&DebugEntry {
                 dwarf: self.dwarf,

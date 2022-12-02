@@ -21,8 +21,8 @@ where
     ) -> Result<Self, crate::Error> {
         let len = schema.len()?;
         let elt_size = schema.elt_type()?.size()?;
-        let bytes = len.checked_mul(elt_size).unwrap();
-        let bytes = usize::try_from(bytes).unwrap();
+        let bytes = len.checked_mul(elt_size).ok_or(crate::error::Kind::Other)?;
+        let bytes = usize::try_from(bytes)?;
         let value = &value[..bytes];
         Ok(Self { value, schema })
     }
@@ -30,7 +30,7 @@ where
     pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, R>, crate::Error> {
         let elt_type = self.schema.elt_type()?;
         let elt_size = elt_type.size()?;
-        let elt_size = usize::try_from(elt_size).unwrap();
+        let elt_size = usize::try_from(elt_size)?;
         let length = self.schema.len()?;
         let length: usize = length.try_into()?;
         Ok(unsafe { super::Iter::new(self.value, elt_size, elt_type, length) })
@@ -55,8 +55,8 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug_list = f.debug_list();
-        for maybe_elt in self.iter().unwrap() {
-            let elt = maybe_elt.unwrap();
+        for maybe_elt in self.iter().map_err(crate::fmt_err)? {
+            let elt = maybe_elt.map_err(crate::fmt_err)?;
             debug_list.entry(&crate::DebugDisplay(elt));
         }
         debug_list.finish()

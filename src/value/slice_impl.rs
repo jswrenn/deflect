@@ -22,7 +22,7 @@ where
     pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let field = unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value) };
         let value = field.value()?;
-        let value: super::Pointer<crate::schema::Mut, _> = value.try_into().unwrap();
+        let value: super::Pointer<crate::schema::Mut, _> = value.try_into()?;
         let ptr = value.deref_raw()?;
         Ok(ptr)
     }

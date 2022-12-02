@@ -113,7 +113,7 @@ pub fn default_provider() -> Result<impl DebugInfo, impl std::error::Error> {
 
     thread_local! {
         pub static CONTEXT: Result<Rc<Context>, Arc<crate::Error>> = {
-            // mmap this process's executable 
+            // mmap this process's executable
             static CURRENT_EXE: Lazy<Result<memmap2::Mmap,  Arc<crate::Error>>> = Lazy::new(|| {
                 let path = std::env::current_exe().map_err(Error::from)?;
                 let file =  std::fs::File::open(path).map_err(Error::from)?;
@@ -153,9 +153,9 @@ pub trait Reflect {
     }
 }
 
-impl<T> Reflect for T {}
+impl<T: ?Sized> Reflect for T {}
 
-impl dyn Reflect {
+impl dyn Reflect + '_ {
     /// Produces a reflected `Value` of `&self`.
     pub fn reflect<'value, 'dwarf, D: DebugInfo>(
         &'value self,

@@ -27,19 +27,13 @@ where
         Ok(Self { value, schema })
     }
 
-    pub fn iter(
-        &self,
-    ) -> Result<
-        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::Error>>,
-        crate::Error,
-    > {
+    pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, R>, crate::Error> {
         let elt_type = self.schema.elt_type()?;
         let elt_size = elt_type.size()?;
         let elt_size = usize::try_from(elt_size).unwrap();
-        Ok(self
-            .value
-            .chunks(elt_size)
-            .map(move |chunk| unsafe { super::Value::with_type(elt_type.clone(), chunk) }))
+        let length = self.schema.len()?;
+        let length: usize = length.try_into()?;
+        Ok(unsafe { super::Iter::new(self.value, elt_size, elt_type, length) })
     }
 }
 

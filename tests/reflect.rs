@@ -67,9 +67,68 @@ mod r#ref {
     }
 }
 
+mod slice {
+    use itertools::Itertools;
+
+    #[quickcheck_macros::quickcheck]
+    fn of_units(data: Vec<()>) -> Result<(), Box<dyn std::error::Error>> {
+        let slice = data.as_slice();
+        let erased: &dyn deflect::Reflect = &slice;
+        let context = deflect::default_provider()?;
+        let value = erased.reflect(&context)?;
+        let value: deflect::value::Slice<_> = value.try_into()?;
+
+        assert_eq!(data.len(), value.len()?);
+        assert_eq!(data.len(), value.iter()?.count());
+
+        let collected: Vec<_> = value
+            .iter()?
+            .map_ok(|value| <()>::try_from(value))
+            .flatten_ok()
+            .try_collect()?;
+
+        assert_eq!(data, collected);
+
+        Ok(())
+    }
+
+    #[quickcheck_macros::quickcheck]
+    fn of_chars(data: Vec<char>) -> Result<(), Box<dyn std::error::Error>> {
+        let slice = data.as_slice();
+        let erased: &dyn deflect::Reflect = &slice;
+        let context = deflect::default_provider()?;
+        let value = erased.reflect(&context)?;
+        let value: deflect::value::Slice<_> = value.try_into()?;
+
+        assert_eq!(data.len(), value.len()?);
+        assert_eq!(data.len(), value.iter()?.count());
+
+        let collected: Vec<_> = value
+            .iter()?
+            .map_ok(|value| char::try_from(value))
+            .flatten_ok()
+            .try_collect()?;
+
+        assert_eq!(data, collected);
+
+        Ok(())
+    }
+}
+
+#[quickcheck_macros::quickcheck]
+fn str(data: String) -> Result<(), Box<dyn std::error::Error>> {
+    let slice = data.as_str();
+    let erased: &dyn deflect::Reflect = &slice;
+    let context = deflect::default_provider()?;
+    let value = erased.reflect(&context)?;
+    let value: &str = value.try_into()?;
+    assert_eq!(slice, value);
+    Ok(())
+}
+
 mod primitive {
 
-    use std::{error::Error, ptr};
+    use std::ptr;
 
     #[quickcheck_macros::quickcheck]
     fn unit(n: ()) -> Result<(), Box<dyn std::error::Error>> {
@@ -215,7 +274,7 @@ mod primitive {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn u8(n: u8) -> Result<(), Box<dyn Error>> {
+    fn u8(n: u8) -> Result<(), Box<dyn std::error::Error>> {
         let erased: &dyn deflect::Reflect = &n;
         let context = deflect::default_provider()?;
         let value = erased.reflect(&context)?;

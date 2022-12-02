@@ -34,26 +34,19 @@ where
         Ok(len)
     }
 
-    pub fn iter(
-        &self,
-    ) -> Result<
-        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::Error>>,
-        crate::Error,
-    > {
+    pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, R>, crate::Error> {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;
         let elt_size = usize::try_from(elt_size)?;
 
-        let len = self.len()?;
-        let bytes = elt_size * len;
+        let length = self.len()?;
+        let bytes = elt_size * length;
 
-        let value = self.data_ptr()?;
-        let value = unsafe { &*std::ptr::slice_from_raw_parts(value.as_ptr(), bytes) };
+        let value = self.data_ptr()?.as_ptr();
+        let value = std::ptr::slice_from_raw_parts(value, bytes);
+        let value = unsafe { &*value };
 
-        Ok(value
-            .chunks(elt_size)
-            .take(len)
-            .map(move |chunk| unsafe { super::Value::with_type(elt_type.clone(), chunk) }))
+        Ok(unsafe { super::Iter::new(value, elt_size, elt_type, length) })
     }
 }
 
@@ -81,5 +74,51 @@ where
             debug_list.entry(&crate::DebugDisplay(elt));
         }
         debug_list.finish()
+    }
+}
+
+impl<'value, 'dwarf, R> From<Slice<'value, 'dwarf, R>> for super::Value<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    fn from(value: Slice<'value, 'dwarf, R>) -> Self {
+        super::Value::Slice(value)
+    }
+}
+
+impl<'a, 'value, 'dwarf, R> TryFrom<&'a super::Value<'value, 'dwarf, R>>
+    for &'a Slice<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: &'a super::Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let super::Value::Slice(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::error::Downcast::new::<
+                &'a super::Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
+    }
+}
+
+impl<'value, 'dwarf, R> TryFrom<super::Value<'value, 'dwarf, R>> for Slice<'value, 'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    type Error = crate::error::Downcast;
+
+    fn try_from(value: super::Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
+        if let super::Value::Slice(value) = value {
+            Ok(value)
+        } else {
+            Err(crate::error::Downcast::new::<
+                super::Value<'value, 'dwarf, R>,
+                Self,
+            >())
+        }
     }
 }

@@ -1,5 +1,4 @@
 use deflect::Reflect;
-use std::error::Error;
 
 fn foo(val: u8) -> u32 {
     val as _
@@ -7,9 +6,9 @@ fn foo(val: u8) -> u32 {
 
 struct Foo<F>(F);
 
-fn run() -> Result<(), Box<dyn Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let erased: &dyn Reflect = &Foo(foo);
-    let context = deflect::default_debuginfo();
+    let context = deflect::default_provider()?;
     let value = erased.reflect(&context)?;
     println!("{value:#}");
     Ok(())

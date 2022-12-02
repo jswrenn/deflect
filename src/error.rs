@@ -22,7 +22,19 @@ pub enum Kind {
     #[error(transparent)]
     Downcast(#[from] Downcast),
     #[error(transparent)]
+    MissingSymbolAddress(MissingSymbolAddress),
+    #[error(transparent)]
+    MissingDebugInfo(MissingDebugInfo),
+    #[error(transparent)]
     Gimli(#[from] crate::gimli::Error),
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error(transparent)]
+    Object(#[from] crate::object::read::Error),
+    #[error(transparent)]
+    Ref(#[from] &'static super::Error),
+    #[error("other")]
+    Other,
 }
 
 impl Kind {
@@ -67,7 +79,15 @@ impl Kind {
     }
 
     pub(crate) fn file_indexing() -> Self {
-        Self::FileIndexing(FileIndexing{ _field: () })
+        Self::FileIndexing(FileIndexing { _field: () })
+    }
+
+    pub(crate) fn missing_symbol_address() -> Self {
+        Self::MissingSymbolAddress(MissingSymbolAddress { _field: () })
+    }
+
+    pub(crate) fn missing_debug_info() -> Self {
+        Self::MissingDebugInfo(MissingDebugInfo { _field: () })
     }
 }
 
@@ -89,7 +109,6 @@ pub struct MissingAttr {
 pub struct InvalidAttr {
     attr: crate::gimli::DwAt,
 }
-
 
 #[derive(thiserror::Error, Debug)]
 #[error("die did not have the child {tag}")]
@@ -135,5 +154,17 @@ impl Downcast {
 #[derive(thiserror::Error, Debug)]
 #[error("could not resolve FileIndex to filename")]
 pub struct FileIndexing {
+    _field: (),
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("`Reflect::symbol_address` failed; could not find symbol address for this type.")]
+pub struct MissingSymbolAddress {
+    _field: (),
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("Could not find debug info for symbol address.")]
+pub struct MissingDebugInfo {
     _field: (),
 }

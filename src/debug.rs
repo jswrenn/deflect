@@ -98,7 +98,8 @@ where
                 debug_struct.field(&dw_at_to_string(name), &value);
             } else*/
             if let crate::gimli::AttributeValue::FileIndex(file_index) = value {
-                if let Ok(value_as_string) = crate::fi_to_string(self.dwarf, self.unit, file_index) {
+                if let Ok(value_as_string) = crate::fi_to_string(self.dwarf, self.unit, file_index)
+                {
                     debug_struct.field(&dw_at_to_string(name), &value_as_string);
                 } else {
                     debug_struct.field(&dw_at_to_string(name), &file_index);

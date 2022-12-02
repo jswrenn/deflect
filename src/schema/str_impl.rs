@@ -4,7 +4,7 @@ use std::fmt;
 /// A schema for [`&[T]`][prim@slice].
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct Slice<'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct str<'dwarf, R: crate::gimli::Reader<Offset = usize>>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -13,7 +13,7 @@ where
     length: super::Field<'dwarf, R>,
 }
 
-impl<'dwarf, R> Slice<'dwarf, R>
+impl<'dwarf, R> str<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -28,9 +28,10 @@ where
         let name = Name::from_die(dwarf, unit, &entry)?;
 
         let name = name.to_slice()?;
-        if !(name.starts_with(b"&[") && name.ends_with(b"]")) {
+
+        if &*name != b"&str" {
             let actual = String::from_utf8_lossy(name.as_ref()).to_string();
-            Err(crate::error::Kind::name_mismatch("&[T]", actual))?;
+            Err(crate::error::Kind::name_mismatch("&str", actual))?;
         };
 
         let schema = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
@@ -94,7 +95,7 @@ where
     }
 }
 
-impl<'dwarf, R> fmt::Debug for Slice<'dwarf, R>
+impl<'dwarf, R> fmt::Debug for str<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -109,7 +110,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Slice<'dwarf, R>
+impl<'value, 'dwarf, R> fmt::Display for str<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

@@ -1,4 +1,8 @@
 //! DWARF-based reflection.
+//!
+//! Use the [`Reflect`] trait to debug or recursively destructure any value.
+//!
+//!
 
 use addr2line::{gimli, object};
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
@@ -7,9 +11,11 @@ use std::{
     borrow::Cow,
     ffi::c_void,
     fmt,
+    marker::PhantomData,
     mem::{self, MaybeUninit},
     ptr::slice_from_raw_parts,
     rc::Rc,
+    sync::Arc,
 };
 
 mod debug;
@@ -53,12 +59,51 @@ pub unsafe trait DebugInfo {
     fn context(&self) -> &addr2line::Context<Self::Reader>;
 }
 
-pub struct DefaultContext {
-    context: Rc<addr2line::Context<Addr2LineReader>>,
+/// Asserts that the given context can be trusted to correspond to the current executable.
+pub struct AssertTrusted<C, R>
+where
+    C: AsRef<addr2line::Context<R>>,
+    R: gimli::Reader<Offset = usize>,
+{
+    context: C,
+    reader: PhantomData<R>,
 }
 
-pub fn default_debuginfo() -> DefaultContext {
-    unsafe impl DebugInfo for DefaultContext {
+impl<C, R> AssertTrusted<C, R>
+where
+    C: AsRef<addr2line::Context<R>>,
+    R: gimli::Reader<Offset = usize>,
+{
+    /// Assert that the given context can be trusted to correspond to the current executable.
+    pub unsafe fn new(context: C) -> Self {
+        Self {
+            context,
+            reader: PhantomData,
+        }
+    }
+}
+
+unsafe impl<C, R> DebugInfo for AssertTrusted<C, R>
+where
+    C: AsRef<addr2line::Context<R>>,
+    R: gimli::Reader<Offset = usize>,
+{
+    type Reader = R;
+
+    fn context(&self) -> &addr2line::Context<Self::Reader> {
+        self.context.as_ref()
+    }
+}
+
+/// The default provider of DWARF debug info.
+///
+/// On Linux, this is simply the current executable.
+pub fn default_provider() -> Result<impl DebugInfo, impl std::error::Error> {
+    struct DefaultProvider {
+        context: Rc<addr2line::Context<Addr2LineReader>>,
+    }
+
+    unsafe impl DebugInfo for DefaultProvider {
         type Reader = Addr2LineReader;
 
         fn context(&self) -> &addr2line::Context<Self::Reader> {
@@ -67,22 +112,31 @@ pub fn default_debuginfo() -> DefaultContext {
     }
 
     thread_local! {
-        pub static CONTEXT: Rc<Context> = {
-            static MMAP: Lazy<memmap2::Mmap> = Lazy::new(|| {
-                let file = current_binary().unwrap();
-                unsafe { memmap2::Mmap::map(&file).unwrap() }
+        pub static CONTEXT: Result<Rc<Context>, Arc<crate::Error>> = {
+            // mmap this process's executable 
+            static CURRENT_EXE: Lazy<Result<memmap2::Mmap,  Arc<crate::Error>>> = Lazy::new(|| {
+                let path = std::env::current_exe().map_err(Error::from)?;
+                let file =  std::fs::File::open(path).map_err(Error::from)?;
+                Ok(unsafe { memmap2::Mmap::map(&file).map_err(Error::from)? })
             });
 
-            static OBJECT: Lazy<object::File<'static, &'static [u8]>> = Lazy::new(|| {
-                object::File::parse(MMAP.as_ref()).unwrap()
+            // parse it as an object
+            static OBJECT: Lazy<Result<object::File<'static, &[u8]>, Arc<crate::Error>>> = Lazy::new(|| {
+                let data = CURRENT_EXE.as_ref().map_err(Arc::clone)?.as_ref();
+                Ok(object::File::parse(data).map_err(Error::from)?)
             });
-            Rc::new(addr2line::Context::new(&*OBJECT).unwrap())
+
+            let object = OBJECT.as_ref().map_err(Arc::clone)?;
+            let context = addr2line::Context::new(object).map_err(Error::from)?;
+
+            Ok(Rc::new(context))
         };
     }
 
-    DefaultContext {
-        context: CONTEXT.with(|ctx| ctx.clone()),
-    }
+    CONTEXT.with(|context| match context {
+        Ok(context) => Ok(unsafe { AssertTrusted::new(context.clone()) }),
+        Err(err) => Err(err.clone()),
+    })
 }
 
 /// A reflectable type.
@@ -125,17 +179,19 @@ impl dyn Reflect {
         R: crate::gimli::Reader<Offset = usize>,
     {
         let Some(symbol_addr) = self.symbol_addr() else {
-            panic!("Could not find symbol address for `symbol_addr::<T>`.")
+            return Err(error::Kind::missing_symbol_address().into())
         };
 
         let Some(dw_die_offset) = ctx
             .find_frames(symbol_addr as u64)?
             .next()?
             .and_then(|f| f.dw_die_offset) else {
-                panic!("Could not find debug info for `symbol_addr::<T>`.");
+                return Err(error::Kind::missing_debug_info().into())
             };
 
-        let unit = ctx.find_dwarf_unit(symbol_addr as u64).unwrap();
+        let Some(unit) = ctx.find_dwarf_unit(symbol_addr as u64) else {
+            return Err(error::Kind::missing_debug_info().into())
+        };
 
         let mut ty = None;
         let mut tree = unit.entries_tree(Some(dw_die_offset))?;
@@ -149,7 +205,7 @@ impl dyn Reflect {
         }
 
         let Some(ty) = ty else {
-            panic!( "Could not find parameter type entry");
+            return Err(error::Kind::Other.into())
         };
 
         Ok((unit, ty))
@@ -158,8 +214,8 @@ impl dyn Reflect {
 
 impl fmt::Debug for dyn Reflect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let context = default_debuginfo();
-        let value = self.reflect(&context).unwrap();
+        let context = default_provider().map_err(crate::fmt_err)?;
+        let value = self.reflect(&context).map_err(crate::fmt_err)?;
         fmt::Display::fmt(&value, f)
     }
 }
@@ -221,6 +277,9 @@ where
 
     /// A reflected [`()`][prim@unit] value.
     unit(value::unit<'value, 'dwarf, R>),
+
+    /// A reflected [`str`][prim@str] value.
+    str(value::str<'value, 'dwarf, R>),
 
     Array(value::Array<'value, 'dwarf, R>),
     Slice(value::Slice<'value, 'dwarf, R>),
@@ -376,7 +435,7 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
         .line_program
         .as_ref()
         .ok_or(error::Kind::file_indexing())?;
-    
+
     let file = line_program
         .header()
         .file(file_index)

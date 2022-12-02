@@ -12,6 +12,7 @@ mod name;
 mod offset;
 mod pointer;
 mod slice;
+mod str_impl;
 mod r#struct;
 mod variant;
 mod variants;
@@ -28,6 +29,7 @@ pub use r#field::Field;
 pub use r#struct::Struct;
 pub use r#variant::Variant;
 pub use slice::Slice;
+pub use str_impl::str;
 pub use variants::{Variants, VariantsIter};
 
 /// A reflected language type.
@@ -76,6 +78,8 @@ where
     Array(Array<'dwarf, R>),
     /// A reflected [`&[T]`][prim@slice].
     Slice(Slice<'dwarf, R>),
+    /// A reflected [`str`][prim@str].
+    str(str<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
     Struct(Struct<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
@@ -131,8 +135,14 @@ where
             }
             crate::gimli::DW_TAG_structure_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
-                if name.to_slice()?.starts_with(b"&[") {
+                let name_slice = name.to_slice()?;
+                if name_slice.starts_with(b"&[") {
                     return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
+                        dwarf, unit, entry,
+                    )?));
+                }
+                if &*name_slice == b"&str" {
+                    return Ok(Self::str(str::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
                 }
@@ -259,6 +269,7 @@ where
             Self::unit(v) => Ok(v.size()),
             Self::Array(v) => v.bytes(),
             Self::Slice(v) => v.size(),
+            Self::str(v) => v.size(),
             Self::Struct(v) => v.size(),
             Self::Enum(v) => v.size(),
             Self::Function(_) => Ok(0),
@@ -295,6 +306,7 @@ where
             Self::unit(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
+            Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
@@ -331,9 +343,9 @@ where
             Self::unit(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
+            Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
-            Self::SharedRef(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
             Self::SharedRef(v) => v.fmt(f),
             Self::UniqueRef(v) => v.fmt(f),
@@ -406,7 +418,7 @@ macro_rules! generate_primitive {
 
 
             /// The size of this type.
-            pub fn name(&self) -> &'static str {
+            pub fn name(&self) -> &'static std::primitive::str {
                 std::any::type_name::<std::primitive::$t>()
             }
 
@@ -513,7 +525,7 @@ where
     }
 
     /// The size of this type.
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static std::primitive::str {
         std::any::type_name::<()>()
     }
 

@@ -158,7 +158,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let res = poll_once(task.as_mut());
         let erased: &dyn Reflect = &task;
-        let context = deflect::default_debuginfo();
+        let context = deflect::default_provider()?;
 
         let value = erased.reflect(&context)?;
 

@@ -45,9 +45,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Produces the next field, if any.
-    pub fn try_next(
-        &mut self,
-    ) -> Result<Option<super::Field<'value, 'dwarf, R>>, crate::Error> {
+    pub fn try_next(&mut self) -> Result<Option<super::Field<'value, 'dwarf, R>>, crate::Error> {
         let Some(next) = self.schema.try_next()? else { return Ok(None) };
         Ok(Some(unsafe { super::field::Field::new(next, self.value) }))
     }

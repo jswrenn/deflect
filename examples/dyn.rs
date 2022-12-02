@@ -1,7 +1,6 @@
 use deflect::Reflect;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     struct Struct;
 
     trait Trait {
@@ -13,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let raw = &Struct as &dyn Trait;
     let erased: &dyn Reflect = &raw;
-    let context = deflect::default_debuginfo();
+    let context = deflect::default_provider()?;
     let value = erased.reflect(&context)?;
     let value: deflect::value::Struct<_> = value.try_into()?;
 

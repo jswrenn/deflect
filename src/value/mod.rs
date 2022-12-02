@@ -9,6 +9,7 @@ mod fields;
 mod function;
 mod pointer;
 mod slice;
+mod str_impl;
 mod r#struct;
 mod variant;
 
@@ -20,6 +21,7 @@ pub use pointer::Pointer;
 pub use r#enum::Enum;
 pub use r#struct::Struct;
 pub use slice::Slice;
+pub use str_impl::str;
 pub use variant::Variant;
 
 use crate::schema::Shared;
@@ -59,6 +61,7 @@ where
             crate::schema::Type::Array(schema) => {
                 Array::with_schema(value, schema).map(Self::Array)
             }
+            crate::schema::Type::str(schema) => str::with_schema(value, schema).map(Self::str),
             crate::schema::Type::Struct(schema) => {
                 Struct::with_schema(value, schema).map(Self::Struct)
             }
@@ -107,6 +110,7 @@ where
             Self::unit(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
+            Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),
@@ -143,6 +147,7 @@ where
             Self::unit(_) => f.write_str("()"),
             Self::Slice(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
+            Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),
             Self::Function(v) => v.fmt(f),

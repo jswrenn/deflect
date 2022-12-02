@@ -22,7 +22,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
 
         let name = Name::from_die(dwarf, unit, &entry)?;
@@ -76,7 +76,7 @@ where
     }
 
     /// The element type of this slice.
-    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
+    pub fn elt(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         if let super::Type::MutPtr(r#ref) = self.data_ptr().r#type()? {
             return r#ref.r#type();
         }
@@ -84,12 +84,12 @@ where
     }
 
     /// The size of this slice, in bytes.
-    pub fn size(&self) -> Result<u64, crate::error::Error> {
+    pub fn size(&self) -> Result<u64, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
     /// The alignment of this slice, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::error::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 }

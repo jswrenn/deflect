@@ -30,7 +30,7 @@ where
     }
 
     /// Produces an iterator over variants.
-    pub fn iter(&mut self) -> Result<VariantsIter<'dwarf, '_, R>, crate::error::Error> {
+    pub fn iter(&mut self) -> Result<VariantsIter<'dwarf, '_, R>, crate::Error> {
         Ok(VariantsIter {
             dwarf: self.dwarf,
             unit: self.unit,
@@ -56,7 +56,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Produces the next variant, if any.
-    pub fn try_next(&mut self) -> Result<Option<super::Variant<'dwarf, R>>, crate::error::Error> {
+    pub fn try_next(&mut self) -> Result<Option<super::Variant<'dwarf, R>>, crate::Error> {
         loop {
             let Some(next) = self.iter.next()? else { return Ok(None) };
             let entry = next.entry();

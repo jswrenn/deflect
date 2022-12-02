@@ -32,7 +32,7 @@ where
     pub(crate) fn from_die<'entry>(
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         let location = crate::get(entry, crate::gimli::DW_AT_data_member_location)?;
         let inner = if let Some(offset) = location.udata_value() {
             OffsetInner::Udata(offset)
@@ -46,7 +46,7 @@ where
         Ok(Self { unit, inner })
     }
 
-    pub fn address(self, start: u64) -> Result<u64, crate::error::Error> {
+    pub fn address(self, start: u64) -> Result<u64, crate::Error> {
         match self.inner {
             OffsetInner::Udata(offset) => Ok(start + offset),
             OffsetInner::Expression(expression) => {

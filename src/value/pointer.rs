@@ -15,7 +15,7 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Pointer<'dwarf, K, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         Ok(Self { schema, value })
     }
 }
@@ -26,7 +26,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// The reflected value behind this reference.
-    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::error::Error>
+    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error>
     where
         K: crate::schema::Reference,
     {
@@ -45,7 +45,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// The unreflected value behind this reference.
-    pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::error::Error> {
+    pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?;

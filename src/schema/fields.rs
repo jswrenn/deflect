@@ -23,7 +23,7 @@ where
     }
 
     /// Produces an iterator over fields.
-    pub fn iter(&mut self) -> Result<FieldsIter<'dwarf, '_, R>, crate::error::Error> {
+    pub fn iter(&mut self) -> Result<FieldsIter<'dwarf, '_, R>, crate::Error> {
         Ok(FieldsIter {
             dwarf: self.dwarf,
             unit: self.unit,
@@ -47,7 +47,7 @@ where
     R: crate::gimli::Reader<Offset = usize>,
 {
     /// Produces the next field, if any.
-    pub fn try_next(&mut self) -> Result<Option<super::Field<'dwarf, R>>, crate::error::Error> {
+    pub fn try_next(&mut self) -> Result<Option<super::Field<'dwarf, R>>, crate::Error> {
         loop {
             let Some(next) = self.iter.next()? else { return Ok(None) };
             let entry = next.entry();

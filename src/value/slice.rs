@@ -15,11 +15,11 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Slice<'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         Ok(Self { value, schema })
     }
 
-    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::error::Error> {
+    pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let field = unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value) };
         let value = field.value()?;
         let value: super::Pointer<crate::schema::Mut, _> = value.try_into().unwrap();
@@ -27,7 +27,7 @@ where
         Ok(ptr)
     }
 
-    pub fn len(&self) -> Result<usize, crate::error::Error> {
+    pub fn len(&self) -> Result<usize, crate::Error> {
         let field = unsafe { super::Field::new(self.schema.length().clone(), self.value) };
         let value = field.value()?;
         let len: usize = value.try_into()?;
@@ -37,8 +37,8 @@ where
     pub fn iter(
         &self,
     ) -> Result<
-        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::error::Error>>,
-        crate::error::Error,
+        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::Error>>,
+        crate::Error,
     > {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;

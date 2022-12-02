@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let raw = &Struct as &dyn Trait;
     let erased: &dyn Reflect = &raw;
-    let context = deflect::current_exe_debuginfo();
+    let context = deflect::default_debuginfo();
     let value = erased.reflect(&context)?;
     let value: deflect::value::Struct<_> = value.try_into()?;
 

@@ -1,4 +1,6 @@
-use addr2line::gimli;
+//! DWARF-based reflection.
+
+use addr2line::{gimli, object};
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
 use once_cell::sync::Lazy;
 use std::{
@@ -22,6 +24,28 @@ type Bytes<'value> = &'value [Byte];
 type Addr2LineReader = EndianReader<RunTimeEndian, Rc<[u8]>>;
 type Context = addr2line::Context<Addr2LineReader>;
 
+use std::backtrace::Backtrace as Stacktrace;
+
+/// An error with a backtrace.
+#[derive(thiserror::Error, Debug)]
+#[error("{}\n{}", self.kind, self.stacktrace)]
+pub struct Error {
+    pub kind: error::Kind,
+    pub stacktrace: Stacktrace,
+}
+
+impl<E> From<E> for Error
+where
+    error::Kind: From<E>,
+{
+    fn from(error: E) -> Self {
+        Self {
+            kind: error.into(),
+            stacktrace: std::backtrace::Backtrace::capture(),
+        }
+    }
+}
+
 /// A source of debug info that can be trusted to correspond to the current executable.
 pub unsafe trait DebugInfo {
     type Reader: gimli::Reader<Offset = usize>;
@@ -29,12 +53,12 @@ pub unsafe trait DebugInfo {
     fn context(&self) -> &addr2line::Context<Self::Reader>;
 }
 
-pub struct CurrentExeContext {
+pub struct DefaultContext {
     context: Rc<addr2line::Context<Addr2LineReader>>,
 }
 
-pub fn current_exe_debuginfo() -> CurrentExeContext {
-    unsafe impl DebugInfo for CurrentExeContext {
+pub fn default_debuginfo() -> DefaultContext {
+    unsafe impl DebugInfo for DefaultContext {
         type Reader = Addr2LineReader;
 
         fn context(&self) -> &addr2line::Context<Self::Reader> {
@@ -56,7 +80,7 @@ pub fn current_exe_debuginfo() -> CurrentExeContext {
         };
     }
 
-    CurrentExeContext {
+    DefaultContext {
         context: CONTEXT.with(|ctx| ctx.clone()),
     }
 }
@@ -82,7 +106,7 @@ impl dyn Reflect {
     pub fn reflect<'value, 'dwarf, D: DebugInfo>(
         &'value self,
         debug_info: &'dwarf D,
-    ) -> Result<Value<'value, 'dwarf, D::Reader>, crate::error::Error> {
+    ) -> Result<Value<'value, 'dwarf, D::Reader>, crate::Error> {
         let context = debug_info.context();
         let (unit, offset) = self.dw_unit_and_die_of(context)?;
         let entry = unit.entry(offset)?;
@@ -96,7 +120,7 @@ impl dyn Reflect {
     fn dw_unit_and_die_of<'ctx, R>(
         &self,
         ctx: &'ctx addr2line::Context<R>,
-    ) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::error::Error>
+    ) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::Error>
     where
         R: crate::gimli::Reader<Offset = usize>,
     {
@@ -134,7 +158,7 @@ impl dyn Reflect {
 
 impl fmt::Debug for dyn Reflect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let context = current_exe_debuginfo();
+        let context = default_debuginfo();
         let value = self.reflect(&context).unwrap();
         fmt::Display::fmt(&value, f)
     }
@@ -311,7 +335,7 @@ fn get_file<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     dwarf: &'a crate::gimli::Dwarf<R>,
     unit: &'a crate::gimli::Unit<R, usize>,
     entry: &crate::gimli::DebuggingInformationEntry<R>,
-) -> Result<Option<Cow<'a, str>>, crate::error::Error> {
+) -> Result<Option<Cow<'a, str>>, crate::Error> {
     let file = get(entry, crate::gimli::DW_AT_decl_file)?;
     let AttributeValue::FileIndex(index) = file else {
         return Ok(None); // error?
@@ -347,7 +371,7 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     dwarf: &'a crate::gimli::Dwarf<R>,
     unit: &'a crate::gimli::Unit<R>,
     file_index: u64,
-) -> Result<String, crate::error::Error> {
+) -> Result<String, crate::Error> {
     let line_program = unit
         .line_program
         .as_ref()

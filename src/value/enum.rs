@@ -16,14 +16,14 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Enum<'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         let size = schema.size()?.try_into()?;
         let value = &value[..size];
         Ok(Self { schema, value })
     }
 
     /// The variant of this enum.
-    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::error::Error> {
+    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::Error> {
         let mut default = None;
         let mut matched = None;
 

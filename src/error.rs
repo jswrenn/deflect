@@ -1,25 +1,5 @@
-use std::backtrace::Backtrace as Stacktrace;
-
 #[derive(thiserror::Error, Debug)]
-#[error("{}\n{}", self.kind, self.stacktrace)]
-pub struct Error {
-    pub kind: Kind,
-    pub stacktrace: Stacktrace,
-}
-
-impl<E> From<E> for Error
-where
-    Kind: From<E>,
-{
-    fn from(error: E) -> Self {
-        Self {
-            kind: error.into(),
-            stacktrace: std::backtrace::Backtrace::capture(),
-        }
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Kind {
     #[error(transparent)]
     TagMismatch(#[from] TagMismatch),
@@ -98,22 +78,10 @@ pub struct TagMismatch {
     actual: crate::gimli::DwTag,
 }
 
-impl TagMismatch {
-    pub fn new(expected: crate::gimli::DwTag, actual: crate::gimli::DwTag) -> Self {
-        Self { expected, actual }
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
 #[error("DIE did not have the attribute {:?}", .attr.static_string())]
 pub struct MissingAttr {
     attr: crate::gimli::DwAt,
-}
-
-impl MissingAttr {
-    pub(crate) fn new(attr: crate::gimli::DwAt) -> Self {
-        Self { attr }
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -122,11 +90,6 @@ pub struct InvalidAttr {
     attr: crate::gimli::DwAt,
 }
 
-impl InvalidAttr {
-    pub(crate) fn new(attr: crate::gimli::DwAt) -> Self {
-        Self { attr }
-    }
-}
 
 #[derive(thiserror::Error, Debug)]
 #[error("die did not have the child {tag}")]
@@ -134,22 +97,10 @@ pub struct MissingChild {
     tag: crate::gimli::DwTag,
 }
 
-impl MissingChild {
-    pub(crate) fn new(tag: crate::gimli::DwTag) -> Self {
-        Self { tag }
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
 #[error("unit did not have entry at offset=0x{offset:x}", offset = .offset.0)]
 pub struct MissingEntry {
     offset: crate::gimli::UnitOffset,
-}
-
-impl MissingEntry {
-    pub(crate) fn new(offset: crate::gimli::UnitOffset) -> Self {
-        Self { offset }
-    }
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -9,7 +9,7 @@ struct Foo<F>(F);
 
 fn run() -> Result<(), Box<dyn Error>> {
     let erased: &dyn Reflect = &Foo(foo);
-    let context = deflect::current_exe_debuginfo();
+    let context = deflect::default_debuginfo();
     let value = erased.reflect(&context)?;
     println!("{value:#}");
     Ok(())

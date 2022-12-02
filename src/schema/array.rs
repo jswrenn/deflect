@@ -21,7 +21,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_array_type)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -45,7 +45,7 @@ where
     }
 
     /// The element type, `T`, of this [`[T; N]`][prim@array] array.
-    pub fn elt_type(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
+    pub fn elt_type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         super::Type::from_die(
             self.dwarf,
             self.unit,
@@ -54,7 +54,7 @@ where
     }
 
     /// The length, `N`, of this [`[T; N]`][prim@array] array.
-    pub fn len(&self) -> Result<u64, crate::error::Error> {
+    pub fn len(&self) -> Result<u64, crate::Error> {
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
         let mut children = root.children();
@@ -71,7 +71,7 @@ where
     }
 
     /// The size of this array, in bytes.
-    pub fn bytes(&self) -> Result<u64, crate::error::Error> {
+    pub fn bytes(&self) -> Result<u64, crate::Error> {
         let len = self.len()?;
         let elt_size = self.elt_type()?.size()?;
         Ok(len.checked_mul(elt_size).expect("Computing the size (in bytes) of this slice overflowed when multiplying the length ({len}) by the element size ({elt_size})."))

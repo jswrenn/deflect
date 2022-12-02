@@ -100,7 +100,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         Ok(match entry.tag() {
             crate::gimli::DW_TAG_base_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
@@ -238,7 +238,7 @@ where
         })
     }
 
-    pub fn size(&self) -> Result<std::primitive::u64, crate::error::Error> {
+    pub fn size(&self) -> Result<std::primitive::u64, crate::Error> {
         match self {
             Self::bool(v) => Ok(v.size()),
             Self::char(v) => Ok(v.size()),
@@ -379,7 +379,7 @@ macro_rules! generate_primitive {
                 dwarf: &'dwarf crate::gimli::Dwarf<R>,
                 unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
                 entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-            ) -> Result<Self, crate::error::Error> {
+            ) -> Result<Self, crate::Error> {
                 crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
 
                 let name = Name::from_die(dwarf, unit, &entry)?;
@@ -487,7 +487,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, std::primitive::usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_base_type)?;
 
         let name = Name::from_die(dwarf, unit, &entry)?;

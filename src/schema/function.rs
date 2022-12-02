@@ -21,7 +21,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_subroutine_type)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -45,7 +45,7 @@ where
     }
 
     /// The name of this type.
-    pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::Error> {
         println!(
             "{:?}",
             crate::debug::DebugEntry::new(self.dwarf, self.unit, &self.entry)

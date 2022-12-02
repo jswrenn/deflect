@@ -21,7 +21,7 @@ where
     }
 
     /// The value of this field.
-    pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::error::Error> {
+    pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
         let r#type = self.r#type()?;
         let offset = self.offset()?.address(0)? as usize;
         let value = &self.value[offset..];

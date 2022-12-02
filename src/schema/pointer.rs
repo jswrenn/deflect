@@ -68,7 +68,7 @@ where
     }
 
     /// The type of the referent.
-    pub fn r#type(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
+    pub fn r#type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         let entry = self.unit.entry(self.target)?;
         super::Type::from_die(self.dwarf, self.unit, entry)
     }

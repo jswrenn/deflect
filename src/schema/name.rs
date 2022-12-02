@@ -18,7 +18,7 @@ where
         dwarf: &crate::gimli::Dwarf<R>,
         unit: &crate::gimli::Unit<R, usize>,
         entry: &crate::gimli::DebuggingInformationEntry<'_, '_, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         let name = crate::get(entry, crate::gimli::DW_AT_name)?;
         let name = dwarf.attr_string(unit, name)?;
         Ok(Self { name })
@@ -29,14 +29,14 @@ where
     /// The string will be borrowed where possible, but some readers may always return an owned string.
     ///
     /// Returns an error if the data contains invalid characters.
-    pub fn to_string(&self) -> Result<Cow<'_, str>, crate::error::Error> {
+    pub fn to_string(&self) -> Result<Cow<'_, str>, crate::Error> {
         Ok(self.name.to_string().map_err(crate::error::Kind::Gimli)?)
     }
 
     /// Convert all remaining data to a clone-on-write string, including invalid characters.
     ///
     /// The string will be borrowed where possible, but some readers may always return an owned string.
-    pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, crate::error::Error> {
+    pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, crate::Error> {
         Ok(self
             .name
             .to_string_lossy()
@@ -46,7 +46,7 @@ where
     /// Return all remaining data as a clone-on-write slice of bytes.
     ///
     /// The slice will be borrowed where possible, but some readers may always return an owned vector.
-    pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::error::Error> {
+    pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::Error> {
         Ok(self.name.to_slice().map_err(crate::error::Kind::Gimli)?)
     }
 }

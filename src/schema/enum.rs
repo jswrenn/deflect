@@ -25,7 +25,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_enumeration_type)?;
         let name = super::Name::from_die(dwarf, unit, &entry)?;
         let discr_type_offset = crate::get_type(&entry)?;
@@ -46,7 +46,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
         let name = super::Name::from_die(dwarf, unit, &entry)?;
 
@@ -112,7 +112,7 @@ where
     }
 
     /// The discriminant of this type.
-    pub fn discriminant_type(&self) -> Result<super::Type<'dwarf, R>, crate::error::Error> {
+    pub fn discriminant_type(&self) -> Result<super::Type<'dwarf, R>, crate::Error> {
         let entry = self.unit.entry(self.discr_type_offset)?;
         super::Type::from_die(self.dwarf, self.unit, entry)
     }
@@ -123,7 +123,7 @@ where
     }
 
     /// Variants of this type.
-    pub fn variants(&self) -> Result<super::Variants<'dwarf, R>, crate::error::Error> {
+    pub fn variants(&self) -> Result<super::Variants<'dwarf, R>, crate::Error> {
         let discriminant_type = self.discriminant_type()?;
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
@@ -153,12 +153,12 @@ where
     }
 
     /// The size of this type, in bytes.
-    pub fn size(&self) -> Result<u64, crate::error::Error> {
+    pub fn size(&self) -> Result<u64, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
     /// The alignment of this type, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::error::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 }

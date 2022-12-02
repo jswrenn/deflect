@@ -11,7 +11,7 @@ enum OptionLike {
     None,
 }
 
-fn main() -> Result<(), deflect::error::Error> {
+fn main() -> Result<(), deflect::Error> {
     let x = 42;
     let pandapandapanda = OptionLike::Some(CLike::B);
     let foo = async move {
@@ -20,7 +20,7 @@ fn main() -> Result<(), deflect::error::Error> {
     };
 
     let erased: &dyn Reflect = &foo;
-    let context = deflect::current_exe_debuginfo();
+    let context = deflect::default_debuginfo();
     let value = erased.reflect(&context)?;
     println!("{value}");
 

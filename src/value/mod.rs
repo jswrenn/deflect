@@ -34,7 +34,7 @@ where
     pub(crate) unsafe fn with_type(
         r#type: crate::schema::Type<'dwarf, R>,
         value: crate::Bytes<'value>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         match r#type {
             crate::schema::Type::bool(schema) => schema.with_bytes(value).map(Self::bool),
             crate::schema::Type::char(schema) => schema.with_bytes(value).map(Self::char),
@@ -517,7 +517,7 @@ macro_rules! generate_primitive {
         where
             R: crate::gimli::Reader<Offset = std::primitive::usize>,
         {
-            unsafe fn with_bytes<'value>(self, bytes: crate::Bytes<'value>) -> Result<$t<'value, 'dwarf, R>, crate::error::Error> {
+            unsafe fn with_bytes<'value>(self, bytes: crate::Bytes<'value>) -> Result<$t<'value, 'dwarf, R>, crate::Error> {
                 let size = self.size() as std::primitive::usize;
                 let value = &bytes[..size];
                 let (&[], [value], &[]) = value.align_to() else { panic!() };
@@ -535,7 +535,7 @@ macro_rules! generate_primitive {
             pub(crate) unsafe fn with_schema(
                 value: crate::Bytes<'value>,
                 schema: crate::schema::$t<'dwarf, R>,
-            ) -> Result<Self, crate::error::Error> {
+            ) -> Result<Self, crate::Error> {
                 let size = schema.size() as std::primitive::usize;
                 let value = &value[..size];
                 let (&[], [value], &[]) = value.align_to() else { panic!() };
@@ -613,7 +613,7 @@ where
     unsafe fn with_bytes<'value>(
         self,
         bytes: crate::Bytes<'value>,
-    ) -> Result<unit<'value, 'dwarf, R>, crate::error::Error> {
+    ) -> Result<unit<'value, 'dwarf, R>, crate::Error> {
         let size = self.size() as std::primitive::usize;
         let value = &bytes[..size];
         let value = &*(value.as_ptr() as *const _);
@@ -631,7 +631,7 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::unit<'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         let size = schema.size() as std::primitive::usize;
         let value = &value[..size];
         let value = &*(value.as_ptr() as *const _);

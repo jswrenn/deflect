@@ -18,7 +18,7 @@ where
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
         schema: crate::schema::Array<'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         let len = schema.len()?;
         let elt_size = schema.elt_type()?.size()?;
         let bytes = len.checked_mul(elt_size).unwrap();
@@ -30,8 +30,8 @@ where
     pub fn iter(
         &self,
     ) -> Result<
-        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::error::Error>>,
-        crate::error::Error,
+        impl Iterator<Item = Result<super::Value<'value, 'dwarf, R>, crate::Error>>,
+        crate::Error,
     > {
         let elt_type = self.schema.elt_type()?;
         let elt_size = elt_type.size()?;

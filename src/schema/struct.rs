@@ -22,7 +22,7 @@ where
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
-    ) -> Result<Self, crate::error::Error> {
+    ) -> Result<Self, crate::Error> {
         crate::check_tag(&entry, crate::gimli::DW_TAG_structure_type)?;
         Ok(Self { dwarf, unit, entry })
     }
@@ -46,22 +46,22 @@ where
     }
 
     /// The name of this primitive type.
-    pub fn name(&self) -> Result<Name<R>, crate::error::Error> {
+    pub fn name(&self) -> Result<Name<R>, crate::Error> {
         Name::from_die(self.dwarf(), self.unit(), self.entry())
     }
 
     /// The size of this field, in bytes.
-    pub fn size(&self) -> Result<u64, crate::error::Error> {
+    pub fn size(&self) -> Result<u64, crate::Error> {
         Ok(crate::get_size(self.entry())?)
     }
 
     /// The alignment of this field, in bytes.
-    pub fn align(&self) -> Result<Option<u64>, crate::error::Error> {
+    pub fn align(&self) -> Result<Option<u64>, crate::Error> {
         Ok(crate::get_align(self.entry())?)
     }
 
     /// The fields of this struct.
-    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::error::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
         let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
     }

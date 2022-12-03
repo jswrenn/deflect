@@ -12,7 +12,7 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'value, 'dwarf, R> Array<'dwarf, R>
+impl<'dwarf, R> Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -93,7 +93,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Array<'dwarf, R>
+impl<'dwarf, R> fmt::Display for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

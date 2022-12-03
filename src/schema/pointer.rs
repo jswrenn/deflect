@@ -88,7 +88,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, K, R> fmt::Display for Pointer<'dwarf, K, R>
+impl<'dwarf, K, R> fmt::Display for Pointer<'dwarf, K, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

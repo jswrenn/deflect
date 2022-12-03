@@ -83,7 +83,7 @@ mod slice {
 
         let collected: Vec<_> = value
             .iter()?
-            .map_ok(|value| <()>::try_from(value))
+            .map_ok(<()>::try_from)
             .flatten_ok()
             .try_collect()?;
 
@@ -105,7 +105,7 @@ mod slice {
 
         let collected: Vec<_> = value
             .iter()?
-            .map_ok(|value| char::try_from(value))
+            .map_ok(char::try_from)
             .flatten_ok()
             .try_collect()?;
 

@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Slice<'dwarf, R>
+impl<'dwarf, R> fmt::Display for Slice<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

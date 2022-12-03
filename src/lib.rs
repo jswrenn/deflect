@@ -440,10 +440,10 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
         let dirname = dwarf.attr_string(unit, dir)?;
         let dirname = dirname.to_string_lossy()?;
         if !dirname.is_empty() {
-            return Ok(format!("{dirname}/{filename}").into());
+            return Ok(format!("{dirname}/{filename}"));
         }
     }
-    Ok(filename.into_owned().into())
+    Ok(filename.into_owned())
 }
 
 struct DebugDisplay<T>(T);

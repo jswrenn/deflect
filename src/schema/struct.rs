@@ -13,7 +13,7 @@ where
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
 }
 
-impl<'value, 'dwarf, R> Struct<'dwarf, R>
+impl<'dwarf, R> Struct<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Struct<'dwarf, R>
+impl<'dwarf, R> fmt::Display for Struct<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

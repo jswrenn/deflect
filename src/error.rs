@@ -38,10 +38,6 @@ pub enum Kind {
 }
 
 impl Kind {
-    pub(crate) fn downcast(src: &'static str, dst: &'static str) -> Self {
-        Self::Downcast(Downcast { src, dst })
-    }
-
     pub(crate) fn tag_mismatch(expected: crate::gimli::DwTag, actual: crate::gimli::DwTag) -> Self {
         Self::TagMismatch(TagMismatch { expected, actual })
     }
@@ -68,14 +64,6 @@ impl Kind {
 
     pub(crate) fn name_mismatch(expected: &'static str, actual: String) -> Self {
         Self::NameMismatch(NameMismatch { expected, actual })
-    }
-
-    pub(crate) fn try_from_int(err: std::num::TryFromIntError) -> Self {
-        Self::TryFromInt(err)
-    }
-
-    pub(crate) fn gimli(err: crate::gimli::Error) -> Self {
-        Self::Gimli(err)
     }
 
     pub(crate) fn file_indexing() -> Self {

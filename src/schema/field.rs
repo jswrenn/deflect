@@ -73,7 +73,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Field<'dwarf, R>
+impl<'dwarf, R> fmt::Display for Field<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

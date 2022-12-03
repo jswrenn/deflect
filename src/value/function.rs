@@ -5,7 +5,7 @@ pub struct Function<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    value: crate::Bytes<'value>,
+    _value: crate::Bytes<'value>,
     schema: crate::schema::Function<'dwarf, R>,
 }
 
@@ -17,7 +17,7 @@ where
         value: crate::Bytes<'value>,
         schema: crate::schema::Function<'dwarf, R>,
     ) -> Result<Self, crate::Error> {
-        Ok(Self { value, schema })
+        Ok(Self { _value: value, schema })
     }
 }
 

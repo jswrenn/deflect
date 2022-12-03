@@ -13,7 +13,7 @@ where
     discriminant_val: Option<super::Data>,
 }
 
-impl<'value, 'dwarf, R> Variant<'dwarf, R>
+impl<'dwarf, R> Variant<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Variant<'dwarf, R>
+impl<'dwarf, R> fmt::Display for Variant<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {

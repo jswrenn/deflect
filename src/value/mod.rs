@@ -541,18 +541,6 @@ macro_rules! generate_primitive {
         where
             R: crate::gimli::Reader<Offset = std::primitive::usize>,
         {
-            pub(crate) unsafe fn with_schema(
-                value: crate::Bytes<'value>,
-                schema: crate::schema::$t<'dwarf, R>,
-            ) -> Result<Self, crate::Error> {
-                let size = schema.size() as std::primitive::usize;
-                let value = &value[..size];
-                let (&[], [value], &[]) = value.align_to() else { 
-                    return Err(crate::error::Kind::Other.into());
-                };
-                Ok(Self { schema, value })
-            }
-
             pub fn value(&self) -> &'value std::primitive::$t {
                 self.value
             }
@@ -639,16 +627,6 @@ impl<'value, 'dwarf, R> unit<'value, 'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::unit<'dwarf, R>,
-    ) -> Result<Self, crate::Error> {
-        let size = schema.size() as std::primitive::usize;
-        let value = &value[..size];
-        let value = &*(value.as_ptr() as *const _);
-        Ok(Self { schema, value })
-    }
-
     pub fn value(&self) -> &'value () {
         self.value
     }
@@ -756,7 +734,8 @@ where
 
     fn try_from(value: &'a Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
-            Ok(*value.value())
+            value.value();
+            Ok(())
         } else {
             Err(crate::error::Downcast::new::<
                 &'a Value<'value, 'dwarf, R>,
@@ -789,7 +768,8 @@ where
 
     fn try_from(value: Value<'value, 'dwarf, R>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
-            Ok(*value.value())
+            value.value();
+            Ok(())
         } else {
             Err(crate::error::Downcast::new::<Value<'value, 'dwarf, R>, Self>())
         }

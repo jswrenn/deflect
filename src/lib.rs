@@ -282,6 +282,10 @@ where
     str(value::str<'value, 'dwarf, R>),
 
     Array(value::Array<'value, 'dwarf, R>),
+
+    /// A reflected [`Box`] value.
+    Box(value::Box<'value, 'dwarf, R>),
+
     Slice(value::Slice<'value, 'dwarf, R>),
     Struct(value::Struct<'value, 'dwarf, R>),
     Enum(value::Enum<'value, 'dwarf, R>),

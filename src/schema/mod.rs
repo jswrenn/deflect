@@ -3,6 +3,7 @@
 use std::{fmt, primitive};
 
 mod array;
+mod r#box;
 mod data;
 mod r#enum;
 mod field;
@@ -18,6 +19,7 @@ mod variant;
 mod variants;
 
 pub use array::Array;
+pub use r#box::Box;
 pub use data::Data;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
@@ -80,6 +82,8 @@ where
     Slice(Slice<'dwarf, R>),
     /// A reflected [`str`][prim@str].
     str(str<'dwarf, R>),
+    /// A reflected [`Box`].
+    Box(Box<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
     Struct(Struct<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
@@ -214,6 +218,7 @@ where
                             target,
                         ))
                     } else if name_as_slice.starts_with(b"fn") {
+                        // TODO: This should probably be its own type.
                         Self::SharedRef(Pointer::new(
                             dwarf,
                             unit,
@@ -221,7 +226,20 @@ where
                             Some(name),
                             target,
                         ))
+                    } else if name_as_slice.starts_with(b"alloc::boxed::Box<") {
+                        Self::Box(Box::new(
+                            dwarf,
+                            unit,
+                            entry.offset(),
+                            Some(name),
+                            target,
+                        ))
                     } else {
+                        eprintln!(
+                            "{:#?}",
+                            &crate::debug::DebugEntry::new(dwarf, unit, &entry,)
+                        );
+
                         return Err(
                             crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into()
                         );
@@ -266,6 +284,7 @@ where
             Self::u128(v) => Ok(v.size()),
             Self::usize(v) => Ok(v.size()),
             Self::unit(v) => Ok(v.size()),
+            Self::Box(v) => Ok(v.size()),
             Self::Array(v) => v.bytes(),
             Self::Slice(v) => v.size(),
             Self::str(v) => v.size(),
@@ -303,6 +322,7 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
+            Self::Box(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),
@@ -340,6 +360,7 @@ where
             Self::u128(v) => v.fmt(f),
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
+            Self::Box(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),

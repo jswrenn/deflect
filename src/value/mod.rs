@@ -3,6 +3,7 @@
 use std::fmt;
 
 mod array;
+mod r#box;
 mod r#enum;
 mod field;
 mod fields;
@@ -15,6 +16,7 @@ mod r#struct;
 mod variant;
 
 pub use array::Array;
+pub use r#box::Box;
 pub use field::Field;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
@@ -62,6 +64,9 @@ where
             }
             crate::schema::Type::Array(schema) => {
                 Array::with_schema(value, schema).map(Self::Array)
+            }
+            crate::schema::Type::Box(schema) => {
+                Box::with_schema(value, schema).map(Self::Box)
             }
             crate::schema::Type::str(schema) => str::with_schema(value, schema).map(Self::str),
             crate::schema::Type::Struct(schema) => {
@@ -111,6 +116,7 @@ where
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
+            Self::Box(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
@@ -149,6 +155,7 @@ where
             Self::unit(_) => f.write_str("()"),
             Self::Slice(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
+            Self::Box(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
             Self::Enum(v) => v.fmt(f),

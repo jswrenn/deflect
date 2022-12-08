@@ -1,38 +1,41 @@
 /// An iterator over items in an [array][super::Array] or [slice][super::Slice].
-pub struct Iter<'value, 'dwarf, R>
+pub struct Iter<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     value: crate::Bytes<'value>,
     elt_size: usize,
-    elt_type: crate::schema::Type<'dwarf, R>,
+    elt_type: crate::schema::Type<'dwarf, P::Reader>,
     length: usize,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Iter<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Iter<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub unsafe fn new(
         value: crate::Bytes<'value>,
         elt_size: usize,
-        elt_type: crate::schema::Type<'dwarf, R>,
+        elt_type: crate::schema::Type<'dwarf, P::Reader>,
         length: usize,
+        provider: &'dwarf P,
     ) -> Self {
         Self {
             value,
             elt_size,
             elt_type,
             length,
+            provider,
         }
     }
 }
 
-impl<'value, 'dwarf, R> Iterator for Iter<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Iterator for Iter<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Item = Result<crate::Value<'value, 'dwarf, R>, crate::Error>;
+    type Item = Result<crate::Value<'value, 'dwarf, P>, crate::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.length == 0 {
@@ -43,6 +46,6 @@ where
         self.value = rest;
         self.length -= 1;
 
-        Some(unsafe { super::Value::with_type(self.elt_type.clone(), elt) })
+        Some(unsafe { super::Value::with_type(self.elt_type.clone(), elt, self.provider) })
     }
 }

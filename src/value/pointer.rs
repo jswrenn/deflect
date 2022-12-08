@@ -1,32 +1,38 @@
 use std::{fmt, ops};
 
-pub struct Pointer<'value, 'dwarf, K, R>
+pub struct Pointer<'value, 'dwarf, K, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    schema: crate::schema::Pointer<'dwarf, K, R>,
+    schema: crate::schema::Pointer<'dwarf, K, P::Reader>,
     value: crate::Bytes<'value>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, K, R> Pointer<'value, 'dwarf, K, R>
+impl<'value, 'dwarf, K, P> Pointer<'value, 'dwarf, K, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::Pointer<'dwarf, K, R>,
+        schema: crate::schema::Pointer<'dwarf, K, P::Reader>,
+        provider: &'dwarf P,
     ) -> Result<Self, crate::Error> {
-        Ok(Self { schema, value })
+        Ok(Self {
+            provider,
+            schema,
+            value,
+        })
     }
 }
 
-impl<'value, 'dwarf, K, R> Pointer<'value, 'dwarf, K, R>
+impl<'value, 'dwarf, K, P> Pointer<'value, 'dwarf, K, P>
 where
     K: crate::schema::Reference,
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     /// The reflected value behind this reference.
-    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error>
+    pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, P>, crate::Error>
     where
         K: crate::schema::Reference,
     {
@@ -36,13 +42,13 @@ where
         let size = size.try_into().map_err(crate::error::Kind::TryFromInt)?;
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
-        unsafe { super::Value::with_type(r#type, value) }
+        unsafe { super::Value::with_type(r#type, value, self.provider) }
     }
 }
 
-impl<'value, 'dwarf, K, R> Pointer<'value, 'dwarf, K, R>
+impl<'value, 'dwarf, K, P> Pointer<'value, 'dwarf, K, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     /// The unreflected value behind this reference.
     pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::Error> {
@@ -54,11 +60,19 @@ where
         let value = unsafe { &*value };
         Ok(value)
     }
+
+    /// The unreflected value behind this reference.
+    pub(crate) fn deref_raw_dyn(&self, size: usize) -> Result<crate::Bytes<'value>, crate::Error> {
+        let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
+        let value = std::ptr::slice_from_raw_parts(value, size);
+        let value = unsafe { &*value };
+        Ok(value)
+    }
 }
 
-impl<'value, 'dwarf, K, R> fmt::Debug for Pointer<'value, 'dwarf, K, R>
+impl<'value, 'dwarf, K, P> fmt::Debug for Pointer<'value, 'dwarf, K, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug_struct = f.debug_struct("deflect::value::Ref");
@@ -68,9 +82,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Shared, R>
+impl<'value, 'dwarf, P> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Shared, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("&")?;
@@ -78,9 +92,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Unique, R>
+impl<'value, 'dwarf, P> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Unique, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("&mut ")?;
@@ -88,9 +102,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Const, R>
+impl<'value, 'dwarf, P> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Const, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = self.deref_raw().map_err(crate::fmt_err)?;
@@ -100,9 +114,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Mut, R>
+impl<'value, 'dwarf, P> fmt::Display for Pointer<'value, 'dwarf, crate::schema::Mut, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = self.deref_raw().map_err(crate::fmt_err)?;
@@ -112,11 +126,11 @@ where
     }
 }
 
-impl<'value, 'dwarf, K, R> ops::Deref for Pointer<'value, 'dwarf, K, R>
+impl<'value, 'dwarf, K, P> ops::Deref for Pointer<'value, 'dwarf, K, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Pointer<'dwarf, K, R>;
+    type Target = crate::schema::Pointer<'dwarf, K, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema

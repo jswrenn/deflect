@@ -1,29 +1,35 @@
 use std::{fmt, ops};
 
 /// A value of a sum type; e.g., a Rust-style enum.
-pub struct Enum<'value, 'dwarf, R>
+pub struct Enum<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    schema: crate::schema::Enum<'dwarf, R>,
+    schema: crate::schema::Enum<'dwarf, P::Reader>,
     value: crate::Bytes<'value>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Enum<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Enum<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::Enum<'dwarf, R>,
+        schema: crate::schema::Enum<'dwarf, P::Reader>,
+        provider: &'dwarf P,
     ) -> Result<Self, crate::Error> {
         let size = schema.size()?.try_into()?;
         let value = &value[..size];
-        Ok(Self { schema, value })
+        Ok(Self {
+            schema,
+            value,
+            provider,
+        })
     }
 
     /// The variant of this enum.
-    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, R>, crate::Error> {
+    pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, P>, crate::Error> {
         let mut default = None;
         let mut matched = None;
 
@@ -52,13 +58,13 @@ where
         }
 
         let schema = matched.or(default).ok_or(crate::error::Kind::Other)?;
-        Ok(unsafe { super::Variant::new(schema, self.value) })
+        Ok(unsafe { super::Variant::new(schema, self.value, self.provider) })
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Debug for Enum<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Debug for Enum<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug_struct = f.debug_struct("deflect::value::Enum");
@@ -68,9 +74,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Enum<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Display for Enum<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.name().fmt(f)?;
@@ -79,11 +85,11 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> ops::Deref for Enum<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> ops::Deref for Enum<'value, 'dwarf, P>
 where
-    R: 'dwarf + crate::gimli::Reader<Offset = usize>,
+    P: 'dwarf + crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Enum<'dwarf, R>;
+    type Target = crate::schema::Enum<'dwarf, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema

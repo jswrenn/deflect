@@ -73,6 +73,10 @@ where
         let mut attrs = self.entry.attrs();
         while let Some(attr) = attrs.next().map_err(crate::fmt_err)? {
             let name = attr.name();
+            if name == crate::gimli::DW_AT_frame_base {
+                continue;
+            }
+
             let value = attr.value();
             if let Ok(value_as_string) = self.dwarf.attr_string(self.unit, value) {
                 if let Ok(value_as_string) = value_as_string.to_string_lossy() {
@@ -111,7 +115,10 @@ where
             }
         }
         if self.entry.has_children() {
-            let mut tree = self.unit.entries_tree(Some(self.entry.offset())).map_err(crate::fmt_err)?;
+            let mut tree = self
+                .unit
+                .entries_tree(Some(self.entry.offset()))
+                .map_err(crate::fmt_err)?;
             let root = tree.root().map_err(crate::fmt_err)?;
             let children = RefCell::new(root.children());
             debug_struct.field(

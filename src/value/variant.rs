@@ -1,45 +1,51 @@
 use std::{fmt, ops};
 
-pub struct Variant<'value, 'dwarf, R>
+pub struct Variant<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    schema: crate::schema::Variant<'dwarf, R>,
+    schema: crate::schema::Variant<'dwarf, P::Reader>,
     value: crate::Bytes<'value>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Variant<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Variant<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn new(
-        schema: crate::schema::Variant<'dwarf, R>,
+        schema: crate::schema::Variant<'dwarf, P::Reader>,
         value: crate::Bytes<'value>,
+        provider: &'dwarf P,
     ) -> Self {
-        Self { schema, value }
+        Self {
+            schema,
+            value,
+            provider,
+        }
     }
 
     /// The fields of this variant.
-    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, P>, crate::Error> {
         let fields = self.schema.fields()?;
-        Ok(super::Fields::new(fields, self.value))
+        Ok(super::Fields::new(fields, self.value, self.provider))
     }
 }
 
-impl<'value, 'dwarf, R> ops::Deref for Variant<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> ops::Deref for Variant<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Variant<'dwarf, R>;
+    type Target = crate::schema::Variant<'dwarf, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Variant<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Display for Variant<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let variant_name = self.name().map_err(crate::fmt_err)?;

@@ -4,6 +4,8 @@ use std::{fmt, primitive};
 
 mod array;
 mod r#box;
+mod boxed_dyn;
+mod boxed_slice;
 mod data;
 mod r#enum;
 mod field;
@@ -19,13 +21,15 @@ mod variant;
 mod variants;
 
 pub use array::Array;
-pub use r#box::Box;
+pub use boxed_dyn::BoxedDyn;
+pub use boxed_slice::BoxedSlice;
 pub use data::Data;
 pub use fields::{Fields, FieldsIter};
 pub use function::Function;
 pub use name::Name;
 pub use offset::Offset;
 pub use pointer::{Const, Mut, Pointer, Reference, Shared, Unique};
+pub use r#box::Box;
 pub use r#enum::Enum;
 pub use r#field::Field;
 pub use r#struct::Struct;
@@ -84,6 +88,10 @@ where
     str(str<'dwarf, R>),
     /// A reflected [`Box`].
     Box(Box<'dwarf, R>),
+    /// A reflected [`Box`]'d slice.
+    BoxedSlice(BoxedSlice<'dwarf, R>),
+    /// A reflected [`Box`]'d `dyn Trait`.
+    BoxedDyn(BoxedDyn<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
     Struct(Struct<'dwarf, R>),
     /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
@@ -113,29 +121,29 @@ where
             crate::gimli::DW_TAG_base_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
                 let name = name.to_slice()?;
-                match name.as_ref() {
-                    b"bool" => Self::bool(bool::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"char" => Self::char(char::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"f32" => Self::f32(f32::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"f64" => Self::f64(f64::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"i8" => Self::i8(i8::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"i16" => Self::i16(i16::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"i32" => Self::i32(i32::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"i64" => Self::i64(i64::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"i128" => Self::i128(i128::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"isize" => Self::isize(isize::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"u8" => Self::u8(u8::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"u16" => Self::u16(u16::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"u32" => Self::u32(u32::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"u64" => Self::u64(u64::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"u128" => Self::u128(u128::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"usize" => Self::usize(usize::from_dw_tag_base_type(dwarf, unit, entry)?),
-                    b"()" => Self::unit(unit::from_dw_tag_base_type(dwarf, unit, entry)?),
+                return match name.as_ref() {
+                    b"bool" => bool::from_dw_tag_base_type(dwarf, unit, entry).map(Self::bool),
+                    b"char" => char::from_dw_tag_base_type(dwarf, unit, entry).map(Self::char),
+                    b"f32" => f32::from_dw_tag_base_type(dwarf, unit, entry).map(Self::f32),
+                    b"f64" => f64::from_dw_tag_base_type(dwarf, unit, entry).map(Self::f64),
+                    b"i8" => i8::from_dw_tag_base_type(dwarf, unit, entry).map(Self::i8),
+                    b"i16" => i16::from_dw_tag_base_type(dwarf, unit, entry).map(Self::i16),
+                    b"i32" => i32::from_dw_tag_base_type(dwarf, unit, entry).map(Self::i32),
+                    b"i64" => i64::from_dw_tag_base_type(dwarf, unit, entry).map(Self::i64),
+                    b"i128" => i128::from_dw_tag_base_type(dwarf, unit, entry).map(Self::i128),
+                    b"isize" => isize::from_dw_tag_base_type(dwarf, unit, entry).map(Self::isize),
+                    b"u8" => u8::from_dw_tag_base_type(dwarf, unit, entry).map(Self::u8),
+                    b"u16" => u16::from_dw_tag_base_type(dwarf, unit, entry).map(Self::u16),
+                    b"u32" => u32::from_dw_tag_base_type(dwarf, unit, entry).map(Self::u32),
+                    b"u64" => u64::from_dw_tag_base_type(dwarf, unit, entry).map(Self::u64),
+                    b"u128" => u128::from_dw_tag_base_type(dwarf, unit, entry).map(Self::u128),
+                    b"usize" => usize::from_dw_tag_base_type(dwarf, unit, entry).map(Self::usize),
+                    b"()" => unit::from_dw_tag_base_type(dwarf, unit, entry).map(Self::unit),
                     _ => unimplemented!(
                         "unhandled primitive: {:#?}",
                         crate::debug::DebugEntry::new(dwarf, unit, &entry)
                     ),
-                }
+                };
             }
             crate::gimli::DW_TAG_structure_type => {
                 let name = Name::from_die(dwarf, unit, &entry)?;
@@ -144,29 +152,48 @@ where
                     return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
-                }
-                if &*name_slice == b"&str" {
+                } else if name_slice.starts_with(b"&[") {
+                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
+                        dwarf, unit, entry,
+                    )?));
+                } else if &*name_slice == b"&str" {
                     return Ok(Self::str(str::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
-                }
-
-                let mut tree = unit.entries_tree(Some(entry.offset()))?;
-                let root = tree.root()?;
-                let mut children = root.children();
-                let mut variants = None;
-
-                while let Some(child) = children.next()? {
-                    if child.entry().tag() == crate::gimli::DW_TAG_variant_part {
-                        variants = Some(child.entry().clone());
-                        break;
-                    }
-                }
-
-                if let Some(_variants) = variants {
-                    Self::Enum(Enum::from_dw_tag_structure_type(dwarf, unit, entry)?)
+                } else if name_slice.starts_with(b"alloc::boxed::Box<") {
+                    // boxedslice: data_ptr + length
+                    let schema = Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
+                    let mut fields = schema.fields()?;
+                    let mut fields = fields.iter()?;
+                    let pointer = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
+                    let metadata = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
+                    let metadata_name = metadata.name()?;
+                    let metadata_name = metadata_name.to_slice()?;
+                    return match metadata_name.as_ref() {
+                        b"length" => {
+                            BoxedSlice::new(schema, pointer, metadata).map(Self::BoxedSlice)
+                        }
+                        b"vtable" => BoxedDyn::new(schema, pointer, metadata).map(Self::BoxedDyn),
+                        _ => Err(crate::error::Kind::Other.into()),
+                    };
                 } else {
-                    Self::Struct(Struct::from_dw_tag_structure_type(dwarf, unit, entry)?)
+                    let mut tree = unit.entries_tree(Some(entry.offset()))?;
+                    let root = tree.root()?;
+                    let mut children = root.children();
+                    let mut variants = None;
+
+                    while let Some(child) = children.next()? {
+                        if child.entry().tag() == crate::gimli::DW_TAG_variant_part {
+                            variants = Some(child.entry().clone());
+                            break;
+                        }
+                    }
+
+                    if let Some(_variants) = variants {
+                        Self::Enum(Enum::from_dw_tag_structure_type(dwarf, unit, entry)?)
+                    } else {
+                        Self::Struct(Struct::from_dw_tag_structure_type(dwarf, unit, entry)?)
+                    }
                 }
             }
             crate::gimli::DW_TAG_enumeration_type => {
@@ -227,13 +254,7 @@ where
                             target,
                         ))
                     } else if name_as_slice.starts_with(b"alloc::boxed::Box<") {
-                        Self::Box(Box::new(
-                            dwarf,
-                            unit,
-                            entry.offset(),
-                            Some(name),
-                            target,
-                        ))
+                        Self::Box(Box::new(dwarf, unit, entry.offset(), Some(name), target))
                     } else {
                         eprintln!(
                             "{:#?}",
@@ -285,6 +306,8 @@ where
             Self::usize(v) => Ok(v.size()),
             Self::unit(v) => Ok(v.size()),
             Self::Box(v) => Ok(v.size()),
+            Self::BoxedSlice(v) => v.size(),
+            Self::BoxedDyn(v) => v.size(),
             Self::Array(v) => v.bytes(),
             Self::Slice(v) => v.size(),
             Self::str(v) => v.size(),
@@ -323,6 +346,8 @@ where
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
             Self::Box(v) => v.fmt(f),
+            Self::BoxedSlice(v) => v.fmt(f),
+            Self::BoxedDyn(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),
@@ -361,6 +386,8 @@ where
             Self::usize(v) => v.fmt(f),
             Self::unit(v) => v.fmt(f),
             Self::Box(v) => v.fmt(f),
+            Self::BoxedSlice(v) => v.fmt(f),
+            Self::BoxedDyn(v) => v.fmt(f),
             Self::Array(v) => v.fmt(f),
             Self::Slice(v) => v.fmt(f),
             Self::str(v) => v.fmt(f),

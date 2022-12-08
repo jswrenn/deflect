@@ -1,45 +1,51 @@
 use std::{fmt, ops};
 
-pub struct Struct<'value, 'dwarf, R>
+pub struct Struct<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    schema: crate::schema::Struct<'dwarf, R>,
+    schema: crate::schema::Struct<'dwarf, P::Reader>,
     value: crate::Bytes<'value>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Struct<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Struct<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::Struct<'dwarf, R>,
+        schema: crate::schema::Struct<'dwarf, P::Reader>,
+        provider: &'dwarf P,
     ) -> Result<Self, crate::Error> {
-        Ok(Self { schema, value })
+        Ok(Self {
+            schema,
+            value,
+            provider,
+        })
     }
 
     /// The fields of this struct.
-    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, R>, crate::Error> {
+    pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, P>, crate::Error> {
         let fields = self.schema.fields()?;
-        Ok(super::Fields::new(fields, self.value))
+        Ok(super::Fields::new(fields, self.value, self.provider))
     }
 }
 
-impl<'value, 'dwarf, R> ops::Deref for Struct<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> ops::Deref for Struct<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Struct<'dwarf, R>;
+    type Target = crate::schema::Struct<'dwarf, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Debug for Struct<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Debug for Struct<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug_struct = f.debug_struct("deflect::value::Struct");
@@ -49,9 +55,9 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Struct<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Display for Struct<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let type_name = self.name().map_err(crate::fmt_err)?;

@@ -5,14 +5,18 @@
 //!
 
 use addr2line::{gimli, object};
+use dashmap::DashMap;
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
 use once_cell::sync::Lazy;
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    collections::HashMap,
     ffi::c_void,
     fmt,
     marker::PhantomData,
     mem::{self, MaybeUninit},
+    path::Path,
     ptr::slice_from_raw_parts,
     rc::Rc,
     sync::Arc,
@@ -52,164 +56,185 @@ where
     }
 }
 
+pub struct DebugInfo<'d, R>
+where
+    R: gimli::Reader<Offset = usize>,
+{
+    context: &'d addr2line::Context<R>,
+    unit: &'d gimli::Unit<R>,
+    entry: gimli::UnitOffset,
+}
+
 /// A source of debug info that can be trusted to correspond to the current executable.
-pub unsafe trait DebugInfo {
+pub unsafe trait DebugInfoProvider: Clone {
     type Reader: gimli::Reader<Offset = usize>;
 
-    fn context(&self) -> &addr2line::Context<Self::Reader>;
+    fn info_for(&self, fn_addr: u64) -> Result<DebugInfo<'_, Self::Reader>, crate::Error>;
 }
 
-/// Asserts that the given context can be trusted to correspond to the current executable.
-pub struct AssertTrusted<C, R>
-where
-    C: AsRef<addr2line::Context<R>>,
-    R: gimli::Reader<Offset = usize>,
-{
-    context: C,
-    reader: PhantomData<R>,
-}
+mod dbginfo_provider {
+    use super::*;
 
-impl<C, R> AssertTrusted<C, R>
-where
-    C: AsRef<addr2line::Context<R>>,
-    R: gimli::Reader<Offset = usize>,
-{
-    /// Assert that the given context can be trusted to correspond to the current executable.
-    pub unsafe fn new(context: C) -> Self {
-        Self {
-            context,
-            reader: PhantomData,
-        }
+    struct Map {
+        path: std::path::PathBuf,
+        static_addr: usize,
     }
-}
 
-unsafe impl<C, R> DebugInfo for AssertTrusted<C, R>
-where
-    C: AsRef<addr2line::Context<R>>,
-    R: gimli::Reader<Offset = usize>,
-{
-    type Reader = R;
+    fn map_of(dynamic_addr: usize) -> Result<Map, ()> {
+        let pid = std::process::id();
+        let mappings = procmaps::Mappings::from_pid(pid as _).unwrap();
 
-    fn context(&self) -> &addr2line::Context<Self::Reader> {
-        self.context.as_ref()
+        for map in mappings.iter() {
+            if (map.base..=map.ceiling).contains(&dynamic_addr) {
+                if let procmaps::Path::MappedFile(file) = &map.pathname {
+                    return Ok(Map {
+                        static_addr: (dynamic_addr - map.base) + map.offset,
+                        path: file.into(),
+                    });
+                }
+            }
+        }
+        Err(())
+    }
+
+    pub fn context_of(dynamic_addr: usize) -> Result<(&'static Context, usize), crate::Error> {
+        let Map { path, static_addr } =
+            map_of(dynamic_addr).map_err(|_| crate::error::Kind::Other)?;
+        let context = read_context(path)?;
+        Ok((context, static_addr))
+    }
+
+    pub fn read_context<P>(path: P) -> Result<&'static Context, crate::Error>
+    where
+        P: Borrow<Path>,
+    {
+        static OBJECT_CACHE: Lazy<
+            DashMap<std::path::PathBuf, &'static object::File<'static, &[u8]>>,
+        > = Lazy::new(|| DashMap::new());
+
+        let path = path.borrow().to_owned();
+
+        let object = OBJECT_CACHE.entry(path.clone()).or_try_insert_with(|| {
+            let file = std::fs::File::open(&path)?;
+            let mmap = Box::new(unsafe { memmap2::Mmap::map(&file)? });
+            let mmap: &'static memmap2::Mmap = Box::leak::<'static>(mmap);
+            let mmap: &'static [u8] = mmap;
+            let object = object::File::parse(mmap)?;
+            let object = Box::leak(Box::new(object));
+            Ok::<_, crate::Error>(object)
+        })?;
+
+        thread_local! {
+            pub static CONTEXT_CACHE: RefCell<HashMap<std::path::PathBuf, &'static Context>> =
+                RefCell::new(HashMap::new());
+        }
+
+        let context = CONTEXT_CACHE.with(move |context_cache| {
+            let mut context_cache = context_cache.borrow_mut();
+            if let Some(context) = context_cache.get(&path) {
+                Ok(*context)
+            } else {
+                let context = addr2line::Context::new(*object).unwrap();
+                let context: &'static _ = Box::leak(Box::new(context));
+                context_cache.insert(path, context);
+                Ok(context)
+            }
+        });
+        context
     }
 }
 
 /// The default provider of DWARF debug info.
 ///
 /// On Linux, this is simply the current executable.
-pub fn default_provider() -> Result<impl DebugInfo, impl std::error::Error> {
-    struct DefaultProvider {
-        context: Rc<addr2line::Context<Addr2LineReader>>,
-    }
+pub fn default_provider() -> Result<impl DebugInfoProvider, crate::Error> {
+    #[derive(Copy, Clone)]
+    pub struct DefaultProvider {}
 
-    unsafe impl DebugInfo for DefaultProvider {
+    unsafe impl DebugInfoProvider for DefaultProvider {
         type Reader = Addr2LineReader;
 
-        fn context(&self) -> &addr2line::Context<Self::Reader> {
-            &self.context
+        fn info_for(&self, fn_addr: u64) -> Result<DebugInfo<'static, Self::Reader>, crate::Error> {
+            let (context, static_addr) = crate::dbginfo_provider::context_of(fn_addr as _)?;
+            let (unit, entry) = crate::dw_unit_and_die_of_addr(context, static_addr)?;
+            Ok(DebugInfo {
+                context,
+                unit,
+                entry,
+            })
         }
     }
 
-    thread_local! {
-        pub static CONTEXT: Result<Rc<Context>, Arc<crate::Error>> = {
-            // mmap this process's executable
-            static CURRENT_EXE: Lazy<Result<memmap2::Mmap,  Arc<crate::Error>>> = Lazy::new(|| {
-                let path = std::env::current_exe().map_err(Error::from)?;
-                let file =  std::fs::File::open(path).map_err(Error::from)?;
-                Ok(unsafe { memmap2::Mmap::map(&file).map_err(Error::from)? })
-            });
-
-            // parse it as an object
-            static OBJECT: Lazy<Result<object::File<'static, &[u8]>, Arc<crate::Error>>> = Lazy::new(|| {
-                let data = CURRENT_EXE.as_ref().map_err(Arc::clone)?.as_ref();
-                Ok(object::File::parse(data).map_err(Error::from)?)
-            });
-
-            let object = OBJECT.as_ref().map_err(Arc::clone)?;
-            let context = addr2line::Context::new(object).map_err(Error::from)?;
-
-            Ok(Rc::new(context))
-        };
-    }
-
-    CONTEXT.with(|context| match context {
-        Ok(context) => Ok(unsafe { AssertTrusted::new(context.clone()) }),
-        Err(err) => Err(err.clone()),
-    })
+    Ok(DefaultProvider {})
 }
 
 /// A reflectable type.
 pub trait Reflect {
-    /// Produces the symbol address of itself.
-    #[inline(never)]
-    fn symbol_addr(&self) -> Option<*mut c_void> {
-        let ip = (<Self as Reflect>::symbol_addr as usize + 1) as *mut c_void;
-        let mut symbol_addr = None;
-        backtrace::resolve(ip, |symbol| {
-            symbol_addr = symbol.addr();
-        });
-        symbol_addr
+    fn type_id(&self) -> usize;
+}
+
+impl<T: ?Sized> Reflect for T {
+    fn type_id(&self) -> usize {
+        <Self as Reflect>::type_id as usize + 1
     }
 }
 
-impl<T: ?Sized> Reflect for T {}
-
 impl dyn Reflect + '_ {
     /// Produces a reflected `Value` of `&self`.
-    pub fn reflect<'value, 'dwarf, D: DebugInfo>(
+    pub fn reflect<'value, 'dwarf, P: DebugInfoProvider>(
         &'value self,
-        debug_info: &'dwarf D,
-    ) -> Result<Value<'value, 'dwarf, D::Reader>, crate::Error> {
-        let context = debug_info.context();
-        let (unit, offset) = self.dw_unit_and_die_of(context)?;
-        let entry = unit.entry(offset)?;
+        provider: &'dwarf P,
+    ) -> Result<Value<'value, 'dwarf, P>, crate::Error> {
+        let DebugInfo {
+            context,
+            unit,
+            entry,
+        } = provider.info_for(self.type_id() as _)?;
+        let entry = unit.entry(entry)?;
         let r#type = schema::Type::from_die(context.dwarf(), unit, entry)?;
         let value =
             slice_from_raw_parts(self as *const Self as *const Byte, mem::size_of_val(self));
-        unsafe { value::Value::with_type(r#type, &*value) }
+        unsafe { value::Value::with_type(r#type, &*value, provider) }
     }
+}
 
-    /// Produces the DWARF unit and entry offset for the DIE of `T`.
-    fn dw_unit_and_die_of<'ctx, R>(
-        &self,
-        ctx: &'ctx addr2line::Context<R>,
-    ) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::Error>
-    where
-        R: crate::gimli::Reader<Offset = usize>,
-    {
-        let Some(symbol_addr) = self.symbol_addr() else {
-            return Err(error::Kind::missing_symbol_address().into())
-        };
-
-        let Some(dw_die_offset) = ctx
-            .find_frames(symbol_addr as u64)?
-            .next()?
-            .and_then(|f| f.dw_die_offset) else {
-                return Err(error::Kind::missing_debug_info().into())
-            };
-
-        let Some(unit) = ctx.find_dwarf_unit(symbol_addr as u64) else {
+/// Produces the DWARF unit and entry offset for the DIE of `T`.
+fn dw_unit_and_die_of_addr<'ctx, R>(
+    ctx: &'ctx addr2line::Context<R>,
+    static_addr: usize,
+) -> Result<(&'ctx crate::gimli::Unit<R>, crate::gimli::UnitOffset), crate::Error>
+where
+    R: crate::gimli::Reader<Offset = usize>,
+{
+    let Some(dw_die_offset) = ctx
+        .find_frames(static_addr as u64)?
+        .next()?
+        .and_then(|f| f.dw_die_offset) else {
             return Err(error::Kind::missing_debug_info().into())
         };
 
-        let mut ty = None;
-        let mut tree = unit.entries_tree(Some(dw_die_offset))?;
-        let mut children = tree.root()?.children();
+    let Some(unit) = ctx.find_dwarf_unit(static_addr as u64) else {
+        return Err(error::Kind::missing_debug_info().into())
+    };
 
-        while let Some(child) = children.next()? {
-            if ty.is_none() && child.entry().tag() == crate::gimli::DW_TAG_template_type_parameter {
-                ty = Some(get_type(child.entry())?);
-                break;
-            }
+    let e = unit.entry(dw_die_offset)?;
+
+    let mut ty = None;
+    let mut tree = unit.entries_tree(Some(dw_die_offset))?;
+    let mut children = tree.root()?.children();
+
+    while let Some(child) = children.next()? {
+        if ty.is_none() && child.entry().tag() == crate::gimli::DW_TAG_template_type_parameter {
+            ty = Some(get_type(child.entry())?);
+            break;
         }
-
-        let Some(ty) = ty else {
-            return Err(error::Kind::Other.into())
-        };
-
-        Ok((unit, ty))
     }
+
+    let Some(ty) = ty else {
+        return Err(error::Kind::Other.into())
+    };
+
+    Ok((unit, ty))
 }
 
 impl fmt::Debug for dyn Reflect {
@@ -223,77 +248,83 @@ impl fmt::Debug for dyn Reflect {
 /// A reflected value.
 #[allow(non_camel_case_types)]
 #[non_exhaustive]
-pub enum Value<'value, 'dwarf, R>
+pub enum Value<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+    P: crate::DebugInfoProvider,
 {
     /// A reflected [`prim@bool`] value.
-    bool(value::bool<'value, 'dwarf, R>),
+    bool(value::bool<'value, 'dwarf, P>),
 
     /// A reflected [`prim@char`] value.
-    char(value::char<'value, 'dwarf, R>),
+    char(value::char<'value, 'dwarf, P>),
 
     /// A reflected [`prim@f32`] value.
-    f32(value::f32<'value, 'dwarf, R>),
+    f32(value::f32<'value, 'dwarf, P>),
 
     /// A reflected [`prim@f64`] value.
-    f64(value::f64<'value, 'dwarf, R>),
+    f64(value::f64<'value, 'dwarf, P>),
 
     /// A reflected [`prim@i8`] value.
-    i8(value::i8<'value, 'dwarf, R>),
+    i8(value::i8<'value, 'dwarf, P>),
 
     /// A reflected [`prim@i16`] value.
-    i16(value::i16<'value, 'dwarf, R>),
+    i16(value::i16<'value, 'dwarf, P>),
 
     /// A reflected [`prim@i32`] value.
-    i32(value::i32<'value, 'dwarf, R>),
+    i32(value::i32<'value, 'dwarf, P>),
 
     /// A reflected [`prim@i64`] value.
-    i64(value::i64<'value, 'dwarf, R>),
+    i64(value::i64<'value, 'dwarf, P>),
 
     /// A reflected [`prim@i128`] value.
-    i128(value::i128<'value, 'dwarf, R>),
+    i128(value::i128<'value, 'dwarf, P>),
 
     /// A reflected [`prim@isize`] value.
-    isize(value::isize<'value, 'dwarf, R>),
+    isize(value::isize<'value, 'dwarf, P>),
 
     /// A reflected [`prim@u8`] value.
-    u8(value::u8<'value, 'dwarf, R>),
+    u8(value::u8<'value, 'dwarf, P>),
 
     /// A reflected [`prim@u16`] value.
-    u16(value::u16<'value, 'dwarf, R>),
+    u16(value::u16<'value, 'dwarf, P>),
 
     /// A reflected [`prim@u32`] value.
-    u32(value::u32<'value, 'dwarf, R>),
+    u32(value::u32<'value, 'dwarf, P>),
 
     /// A reflected [`prim@u64`] value.
-    u64(value::u64<'value, 'dwarf, R>),
+    u64(value::u64<'value, 'dwarf, P>),
 
     /// A reflected [`prim@u128`] value.
-    u128(value::u128<'value, 'dwarf, R>),
+    u128(value::u128<'value, 'dwarf, P>),
 
     /// A reflected [`prim@usize`] value.
-    usize(value::usize<'value, 'dwarf, R>),
+    usize(value::usize<'value, 'dwarf, P>),
 
     /// A reflected [`()`][prim@unit] value.
-    unit(value::unit<'value, 'dwarf, R>),
+    unit(value::unit<'value, 'dwarf, P>),
 
     /// A reflected [`str`][prim@str] value.
-    str(value::str<'value, 'dwarf, R>),
+    str(value::str<'value, 'dwarf, P>),
 
-    Array(value::Array<'value, 'dwarf, R>),
+    Array(value::Array<'value, 'dwarf, P>),
 
     /// A reflected [`Box`] value.
-    Box(value::Box<'value, 'dwarf, R>),
+    Box(value::Box<'value, 'dwarf, P>),
 
-    Slice(value::Slice<'value, 'dwarf, R>),
-    Struct(value::Struct<'value, 'dwarf, R>),
-    Enum(value::Enum<'value, 'dwarf, R>),
-    Function(value::Function<'value, 'dwarf, R>),
-    SharedRef(value::Pointer<'value, 'dwarf, crate::schema::Shared, R>),
-    UniqueRef(value::Pointer<'value, 'dwarf, crate::schema::Unique, R>),
-    ConstPtr(value::Pointer<'value, 'dwarf, crate::schema::Const, R>),
-    MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, R>),
+    /// A reflected [`Box`]'d slice value.
+    BoxedSlice(value::BoxedSlice<'value, 'dwarf, P>),
+
+    /// A reflected [`Box`]'d dyn value.
+    BoxedDyn(value::BoxedDyn<'value, 'dwarf, P>),
+
+    Slice(value::Slice<'value, 'dwarf, P>),
+    Struct(value::Struct<'value, 'dwarf, P>),
+    Enum(value::Enum<'value, 'dwarf, P>),
+    Function(value::Function<'value, 'dwarf, P>),
+    SharedRef(value::Pointer<'value, 'dwarf, crate::schema::Shared, P>),
+    UniqueRef(value::Pointer<'value, 'dwarf, crate::schema::Unique, P>),
+    ConstPtr(value::Pointer<'value, 'dwarf, crate::schema::Const, P>),
+    MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, P>),
 }
 
 fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
@@ -464,4 +495,38 @@ where
 fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
     eprintln!("ERROR: {}", err);
     fmt::Error
+}
+
+pub fn to_static_addr(dynamic_addr: usize) -> Result<usize, crate::Error> {
+    use std::{
+        fs,
+        io::{BufRead, BufReader},
+        process,
+    };
+    let pid = process::id();
+    let proc_maps_filename = format!("/proc/{}/maps", pid);
+
+    let file = fs::File::open(proc_maps_filename).unwrap();
+    let reader = BufReader::new(file);
+
+    for (_, line) in reader.lines().enumerate() {
+        let line = line.unwrap();
+        let mut tokens = line.split(' ');
+
+        let range = tokens.next().unwrap();
+        let (section_start_addr, section_end_addr) = {
+            let mut tokens = range.split(|c| c == '-' || c == ' ');
+            let section_start_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
+            let section_end_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
+            (section_start_addr, section_end_addr)
+        };
+        let _permissions = tokens.next().unwrap();
+        let offset_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
+
+        if dynamic_addr >= section_start_addr && dynamic_addr < section_end_addr {
+            return Ok((dynamic_addr - section_start_addr) + offset_addr);
+        }
+    }
+
+    Err(error::Kind::Other.into())
 }

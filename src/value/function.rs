@@ -1,40 +1,46 @@
 use std::{fmt, ops};
 
 /// A function value.
-pub struct Function<'value, 'dwarf, R>
+pub struct Function<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     _value: crate::Bytes<'value>,
-    schema: crate::schema::Function<'dwarf, R>,
+    schema: crate::schema::Function<'dwarf, P::Reader>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Function<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Function<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn with_schema(
         value: crate::Bytes<'value>,
-        schema: crate::schema::Function<'dwarf, R>,
+        schema: crate::schema::Function<'dwarf, P::Reader>,
+        provider: &'dwarf P,
     ) -> Result<Self, crate::Error> {
-        Ok(Self { _value: value, schema })
+        Ok(Self {
+            _value: value,
+            schema,
+            provider,
+        })
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Function<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Display for Function<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.schema.fmt(f)
     }
 }
 
-impl<'value, 'dwarf, R> ops::Deref for Function<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> ops::Deref for Function<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Function<'dwarf, R>;
+    type Target = crate::schema::Function<'dwarf, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema

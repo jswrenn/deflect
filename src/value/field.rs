@@ -1,37 +1,43 @@
 use std::{fmt, ops};
 
 /// A field of a [struct][super::Struct] or [variant][super::Variant].
-pub struct Field<'value, 'dwarf, R: crate::gimli::Reader<Offset = usize>>
+pub struct Field<'value, 'dwarf, P: crate::DebugInfoProvider>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    schema: crate::schema::Field<'dwarf, R>,
+    schema: crate::schema::Field<'dwarf, P::Reader>,
     value: crate::Bytes<'value>,
+    provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, R> Field<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> Field<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     pub(crate) unsafe fn new(
-        schema: crate::schema::Field<'dwarf, R>,
+        schema: crate::schema::Field<'dwarf, P::Reader>,
         value: crate::Bytes<'value>,
+        provider: &'dwarf P,
     ) -> Self {
-        Self { schema, value }
+        Self {
+            schema,
+            value,
+            provider,
+        }
     }
 
     /// The value of this field.
-    pub fn value(&'dwarf self) -> Result<super::Value<'value, 'dwarf, R>, crate::Error> {
+    pub fn value(&self) -> Result<super::Value<'value, 'dwarf, P>, crate::Error> {
         let r#type = self.r#type()?;
         let offset = self.offset()?.address(0)? as usize;
         let value = &self.value[offset..];
-        unsafe { super::Value::with_type(r#type, value) }
+        unsafe { super::Value::with_type(r#type, value, self.provider) }
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Display for Field<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> fmt::Display for Field<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.name().map_err(crate::fmt_err)?.fmt(f)?;
@@ -40,11 +46,11 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> ops::Deref for Field<'value, 'dwarf, R>
+impl<'value, 'dwarf, P> ops::Deref for Field<'value, 'dwarf, P>
 where
-    R: crate::gimli::Reader<Offset = usize>,
+    P: crate::DebugInfoProvider,
 {
-    type Target = crate::schema::Field<'dwarf, R>;
+    type Target = crate::schema::Field<'dwarf, P::Reader>;
 
     fn deref(&self) -> &Self::Target {
         &self.schema

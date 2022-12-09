@@ -1,5 +1,6 @@
 use std::{fmt, ops};
 
+/// A reflected struct value.
 pub struct Struct<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,

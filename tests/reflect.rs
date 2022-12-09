@@ -78,7 +78,7 @@ mod slice {
         let value = erased.reflect(&context)?;
         let value: deflect::value::Slice<_> = value.try_into()?;
 
-        assert_eq!(data.len(), value.len()?);
+        assert_eq!(data.len(), value.length()?);
         assert_eq!(data.len(), value.iter()?.count());
 
         let collected: Vec<_> = value
@@ -100,7 +100,7 @@ mod slice {
         let value = erased.reflect(&context)?;
         let value: deflect::value::Slice<_> = value.try_into()?;
 
-        assert_eq!(data.len(), value.len()?);
+        assert_eq!(data.len(), value.length()?);
         assert_eq!(data.len(), value.iter()?.count());
 
         let collected: Vec<_> = value

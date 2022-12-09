@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// A reflected [`Box`]'d `dyn Trait` object value.
 pub struct BoxedDyn<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
@@ -41,6 +42,7 @@ where
         Ok(value)
     }
 
+    /// [`Box`]'d `dyn Trait` object value.
     pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, P>, crate::Error> {
         let vtable = self.vtable()?;
         let vtable: super::Pointer<crate::schema::Shared, _> = vtable.try_into()?;

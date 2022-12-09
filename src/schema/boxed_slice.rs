@@ -1,4 +1,3 @@
-use super::Name;
 use std::fmt;
 
 /// A schema for `Box<[T]>`.

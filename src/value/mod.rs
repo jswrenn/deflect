@@ -555,7 +555,7 @@ macro_rules! generate_primitive {
         where
             R: crate::gimli::Reader<Offset = std::primitive::usize>
         {
-            unsafe fn with_bytes<'value, P>(self, provider: &'dwarf P, bytes: crate::Bytes<'value>) -> Result<$t<'value, 'dwarf, P>, crate::Error>
+            unsafe fn with_bytes<'value, P>(self, _provider: &'dwarf P, bytes: crate::Bytes<'value>) -> Result<$t<'value, 'dwarf, P>, crate::Error>
             where
                 P: crate::DebugInfoProvider<Reader = R>,
             {
@@ -576,10 +576,12 @@ macro_rules! generate_primitive {
         where
             P: crate::DebugInfoProvider
         {
+            /// The rust value of this reflected value.
             pub fn value(&self) -> &'value std::primitive::$t {
                 self.value
             }
 
+            /// The schema of this reflected value.
             pub fn schema(&self) -> &crate::schema::$t<'dwarf, P::Reader> {
                 &self.schema
             }
@@ -646,7 +648,7 @@ where
 {
     unsafe fn with_bytes<'value, P>(
         self,
-        provider: &'dwarf P,
+        _provider: &'dwarf P,
         bytes: crate::Bytes<'value>,
     ) -> Result<unit<'value, 'dwarf, P>, crate::Error>
     where
@@ -666,10 +668,12 @@ impl<'value, 'dwarf, P> unit<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The Rust value of this reflected value.
     pub fn value(&self) -> &'value () {
         self.value
     }
 
+    /// The schema of this reflected value.
     pub fn schema(&self) -> &crate::schema::unit<'dwarf, P::Reader> {
         &self.schema
     }

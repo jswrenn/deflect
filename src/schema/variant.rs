@@ -64,10 +64,12 @@ where
         Ok(crate::get_align(self.entry())?)
     }
 
+    /// The file the variant was defined in (if available).
     pub fn file(&self) -> Result<Option<Cow<'_, str>>, crate::Error> {
         crate::get_file(self.dwarf, self.unit, &self.entry)
     }
 
+    /// The discriminant value (if any).
     pub fn discriminant_value(&self) -> &Option<super::Data> {
         &self.discriminant_val
     }

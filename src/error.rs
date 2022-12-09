@@ -1,3 +1,6 @@
+//! Error kinds.
+
+#[allow(missing_docs)]
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Kind {
@@ -79,6 +82,7 @@ impl Kind {
     }
 }
 
+/// Expected a DWARF tag of one kind, but received another.
 #[derive(thiserror::Error, Debug)]
 #[error("tag mismatch; expected {:?}, received {:?}", .expected.static_string(), .actual.static_string())]
 pub struct TagMismatch {
@@ -86,30 +90,35 @@ pub struct TagMismatch {
     actual: crate::gimli::DwTag,
 }
 
+/// Expected the DWARF DIE to have an attribute of one kind; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("DIE did not have the attribute {:?}", .attr.static_string())]
 pub struct MissingAttr {
     attr: crate::gimli::DwAt,
 }
 
+/// Expected the DWARF attribute to have a value of some form; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("The attribute {:?} had an invalid value.", .attr.static_string())]
 pub struct InvalidAttr {
     attr: crate::gimli::DwAt,
 }
 
+/// Expected the DWARF DIE to have a child of a given tag; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("die did not have the child {tag}")]
 pub struct MissingChild {
     tag: crate::gimli::DwTag,
 }
 
+/// Expected the DWARF unit to have an entry at a given offset; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("unit did not have entry at offset=0x{offset:x}", offset = .offset.0)]
 pub struct MissingEntry {
     offset: crate::gimli::UnitOffset,
 }
 
+/// Expected the value to have a particular size; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("size mismatch; expected {:?}, received {:?}", .expected, .actual)]
 pub struct SizeMismatch {
@@ -117,6 +126,7 @@ pub struct SizeMismatch {
     actual: usize,
 }
 
+/// Expected the entry to have a given name; it did not.
 #[derive(thiserror::Error, Debug)]
 #[error("name mismatch; expected {:?}, received {:?}", .expected, .actual)]
 pub struct NameMismatch {
@@ -124,6 +134,7 @@ pub struct NameMismatch {
     actual: String,
 }
 
+/// Could not downcast the value into the given type.
 #[derive(thiserror::Error, Debug)]
 #[error("Could not downcast into {src}, received {dst}")]
 pub struct Downcast {
@@ -139,18 +150,21 @@ impl Downcast {
     }
 }
 
+/// Could not resolve a `FileIndex` into a file name.
 #[derive(thiserror::Error, Debug)]
 #[error("could not resolve FileIndex to filename")]
 pub struct FileIndexing {
     _field: (),
 }
 
+/// Could not find the symbol address of a given memory address.
 #[derive(thiserror::Error, Debug)]
 #[error("`Reflect::symbol_address` failed; could not find symbol address for this type.")]
 pub struct MissingSymbolAddress {
     _field: (),
 }
 
+/// Could not find debug info for the given function.
 #[derive(thiserror::Error, Debug)]
 #[error("Could not find debug info for symbol address.")]
 pub struct MissingDebugInfo {

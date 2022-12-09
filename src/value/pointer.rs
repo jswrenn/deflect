@@ -1,5 +1,6 @@
 use std::{fmt, ops};
 
+/// A reflected pointer or reference.
 pub struct Pointer<'value, 'dwarf, K, P>
 where
     P: crate::DebugInfoProvider,

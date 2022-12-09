@@ -1,4 +1,3 @@
-use super::Name;
 use std::fmt;
 
 /// A schema for `Box<dyn Trait>`.
@@ -48,6 +47,7 @@ where
         self.schema.entry()
     }
 
+    /// This fat pointer, interpreted as a struct.
     pub fn as_struct(&self) -> &super::Struct<'dwarf, R> {
         &self.schema
     }

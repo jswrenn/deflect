@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// A reflected slice value.
 pub struct Slice<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
@@ -25,6 +26,7 @@ where
         })
     }
 
+    /// The value of the `data_ptr` field of this slice.
     pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.data_ptr().clone(), self.value, self.provider) };
@@ -34,7 +36,8 @@ where
         Ok(ptr)
     }
 
-    pub fn len(&self) -> Result<usize, crate::Error> {
+    /// The value of the `length` field of this slice.
+    pub fn length(&self) -> Result<usize, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.length().clone(), self.value, self.provider) };
         let value = field.value()?;
@@ -42,12 +45,13 @@ where
         Ok(len)
     }
 
+    /// An iterator over values of this slice.
     pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, P>, crate::Error> {
         let elt_type = self.schema.elt()?;
         let elt_size = elt_type.size()?;
         let elt_size = usize::try_from(elt_size)?;
 
-        let length = self.len()?;
+        let length = self.length()?;
         let bytes = elt_size * length;
 
         let value = self.data_ptr()?.as_ptr();

@@ -46,6 +46,7 @@ where
         Ok(Self { unit, inner })
     }
 
+    /// Produces the actual memory address referred to by this offset.
     pub fn address(self, start: u64) -> Result<u64, crate::Error> {
         match self.inner {
             OffsetInner::Udata(offset) => Ok(start + offset),

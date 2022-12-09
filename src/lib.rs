@@ -1,8 +1,8 @@
 //! DWARF-based reflection.
 //!
 //! Use the [`Reflect`] trait to debug or recursively destructure any value.
-//!
-//!
+
+#![deny(missing_docs)]
 
 use addr2line::{gimli, object};
 use dashmap::DashMap;
@@ -12,14 +12,11 @@ use std::{
     borrow::{Borrow, Cow},
     cell::RefCell,
     collections::HashMap,
-    ffi::c_void,
     fmt,
-    marker::PhantomData,
     mem::{self, MaybeUninit},
     path::Path,
     ptr::slice_from_raw_parts,
     rc::Rc,
-    sync::Arc,
 };
 
 mod debug;
@@ -40,8 +37,20 @@ use std::backtrace::Backtrace as Stacktrace;
 #[derive(thiserror::Error, Debug)]
 #[error("{}\n{}", self.kind, self.stacktrace)]
 pub struct Error {
-    pub kind: error::Kind,
-    pub stacktrace: Stacktrace,
+    kind: error::Kind,
+    stacktrace: Stacktrace,
+}
+
+impl Error {
+    /// The kind of error that occurred.
+    pub fn kind(&self) -> &error::Kind {
+        &self.kind
+    }
+
+    /// The backtrace from where the error occurred. 
+    pub fn stacktrace(&self) -> &Stacktrace {
+        &self.stacktrace
+    }
 }
 
 impl<E> From<E> for Error
@@ -56,6 +65,7 @@ where
     }
 }
 
+/// Raw debug info for a function.
 pub struct DebugInfo<'d, R>
 where
     R: gimli::Reader<Offset = usize>,
@@ -65,10 +75,30 @@ where
     entry: gimli::UnitOffset,
 }
 
+impl<'d, R> DebugInfo<'d, R>
+where
+    R: gimli::Reader<Offset = usize>,
+{
+    /// Constructs a new `DebugInfo`.
+    pub fn new(
+        context: &'d addr2line::Context<R>,
+        unit: &'d gimli::Unit<R>,
+        entry: gimli::UnitOffset,
+    ) -> Self {
+        Self {
+            context,
+            unit,
+            entry,
+        }
+    }
+}
+
 /// A source of debug info that can be trusted to correspond to the current executable.
 pub unsafe trait DebugInfoProvider: Clone {
+    /// The type of the DWARF reader.
     type Reader: gimli::Reader<Offset = usize>;
 
+    /// Produces debug info for a given function.
     fn info_for(&self, fn_addr: u64) -> Result<DebugInfo<'_, Self::Reader>, crate::Error>;
 }
 
@@ -99,7 +129,7 @@ mod dbginfo_provider {
 
     pub fn context_of(dynamic_addr: usize) -> Result<(&'static Context, usize), crate::Error> {
         let Map { path, static_addr } =
-            map_of(dynamic_addr).map_err(|_| crate::error::Kind::Other)?;
+            map_of(dynamic_addr).map_err(|_| error::Kind::missing_symbol_address())?;
         let context = read_context(path)?;
         Ok((context, static_addr))
     }
@@ -110,7 +140,7 @@ mod dbginfo_provider {
     {
         static OBJECT_CACHE: Lazy<
             DashMap<std::path::PathBuf, &'static object::File<'static, &[u8]>>,
-        > = Lazy::new(|| DashMap::new());
+        > = Lazy::new(DashMap::new);
 
         let path = path.borrow().to_owned();
 
@@ -129,7 +159,7 @@ mod dbginfo_provider {
                 RefCell::new(HashMap::new());
         }
 
-        let context = CONTEXT_CACHE.with(move |context_cache| {
+        CONTEXT_CACHE.with(move |context_cache| {
             let mut context_cache = context_cache.borrow_mut();
             if let Some(context) = context_cache.get(&path) {
                 Ok(*context)
@@ -139,14 +169,11 @@ mod dbginfo_provider {
                 context_cache.insert(path, context);
                 Ok(context)
             }
-        });
-        context
+        })
     }
 }
 
 /// The default provider of DWARF debug info.
-///
-/// On Linux, this is simply the current executable.
 pub fn default_provider() -> Result<impl DebugInfoProvider, crate::Error> {
     #[derive(Copy, Clone)]
     pub struct DefaultProvider {}
@@ -170,12 +197,13 @@ pub fn default_provider() -> Result<impl DebugInfoProvider, crate::Error> {
 
 /// A reflectable type.
 pub trait Reflect {
-    fn type_id(&self) -> usize;
+    /// Produces an ID that uniquely identifies the type within its compilation unit.
+    fn local_type_id(&self) -> usize;
 }
 
 impl<T: ?Sized> Reflect for T {
-    fn type_id(&self) -> usize {
-        <Self as Reflect>::type_id as usize + 1
+    fn local_type_id(&self) -> usize {
+        <Self as Reflect>::local_type_id as usize
     }
 }
 
@@ -189,7 +217,7 @@ impl dyn Reflect + '_ {
             context,
             unit,
             entry,
-        } = provider.info_for(self.type_id() as _)?;
+        } = provider.info_for(self.local_type_id() as _)?;
         let entry = unit.entry(entry)?;
         let r#type = schema::Type::from_die(context.dwarf(), unit, entry)?;
         let value =
@@ -217,8 +245,6 @@ where
         return Err(error::Kind::missing_debug_info().into())
     };
 
-    let e = unit.entry(dw_die_offset)?;
-
     let mut ty = None;
     let mut tree = unit.entries_tree(Some(dw_die_offset))?;
     let mut children = tree.root()?.children();
@@ -231,7 +257,7 @@ where
     }
 
     let Some(ty) = ty else {
-        return Err(error::Kind::Other.into())
+        return Err(error::Kind::missing_child(crate::gimli::DW_TAG_template_type_parameter).into())
     };
 
     Ok((unit, ty))
@@ -306,6 +332,7 @@ where
     /// A reflected [`str`][prim@str] value.
     str(value::str<'value, 'dwarf, P>),
 
+    /// A reflected array value.
     Array(value::Array<'value, 'dwarf, P>),
 
     /// A reflected [`Box`] value.
@@ -317,13 +344,28 @@ where
     /// A reflected [`Box`]'d dyn value.
     BoxedDyn(value::BoxedDyn<'value, 'dwarf, P>),
 
+    /// A reflected slice value.
     Slice(value::Slice<'value, 'dwarf, P>),
+
+    /// A reflected struct value.
     Struct(value::Struct<'value, 'dwarf, P>),
+
+    /// A reflected enum value.
     Enum(value::Enum<'value, 'dwarf, P>),
+
+    /// A reflected function value.
     Function(value::Function<'value, 'dwarf, P>),
+
+    /// A reflected shared reference value.
     SharedRef(value::Pointer<'value, 'dwarf, crate::schema::Shared, P>),
+
+    /// A reflected unique reference value.
     UniqueRef(value::Pointer<'value, 'dwarf, crate::schema::Unique, P>),
+
+    /// A reflected `const` pointer value.
     ConstPtr(value::Pointer<'value, 'dwarf, crate::schema::Const, P>),
+
+    /// A reflected `mut` pointer value.
     MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, P>),
 }
 
@@ -497,7 +539,7 @@ fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
     fmt::Error
 }
 
-pub fn to_static_addr(dynamic_addr: usize) -> Result<usize, crate::Error> {
+fn to_static_addr(dynamic_addr: usize) -> Result<usize, crate::Error> {
     use std::{
         fs,
         io::{BufRead, BufReader},

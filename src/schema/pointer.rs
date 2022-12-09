@@ -2,12 +2,19 @@ use std::{fmt, marker::PhantomData};
 
 use addr2line::gimli::UnitOffset;
 
+/// The kind of a unique pointer.
 #[derive(Clone, Copy)]
 pub enum Unique {}
+
+/// The kind of a shared pointer.
 #[derive(Clone, Copy)]
 pub enum Shared {}
+
+/// The kind of a raw `mut` pointer.
 #[derive(Clone, Copy)]
 pub enum Mut {}
+
+/// The kind of a raw `const` pointer.
 #[derive(Clone, Copy)]
 pub enum Const {}
 
@@ -17,6 +24,7 @@ mod reference_seal {
     impl Sealed for super::Shared {}
 }
 
+/// A trait implemented by reference kinds.
 pub trait Reference: reference_seal::Sealed {}
 impl Reference for Unique {}
 impl Reference for Shared {}

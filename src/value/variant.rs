@@ -1,5 +1,6 @@
 use std::{fmt, ops};
 
+/// A reflected enum variant value.
 pub struct Variant<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,

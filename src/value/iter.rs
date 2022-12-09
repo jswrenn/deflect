@@ -14,7 +14,7 @@ impl<'value, 'dwarf, P> Iter<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
-    pub unsafe fn new(
+    pub(crate) unsafe fn new(
         value: crate::Bytes<'value>,
         elt_size: usize,
         elt_type: crate::schema::Type<'dwarf, P::Reader>,

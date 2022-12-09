@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// A reflected `&str` value.
 #[allow(non_camel_case_types)]
 pub struct str<'value, 'dwarf, P>
 where
@@ -7,7 +8,7 @@ where
 {
     value: &'value std::primitive::str,
     schema: crate::schema::str<'dwarf, P::Reader>,
-    provider: &'dwarf P,
+    _provider: &'dwarf P,
 }
 
 impl<'value, 'dwarf, P> str<'value, 'dwarf, P>
@@ -34,10 +35,11 @@ where
         Ok(Self {
             value,
             schema,
-            provider,
+            _provider: provider,
         })
     }
 
+    /// The Rust value corresponding to this reflected value.
     pub fn value(&self) -> &'value std::primitive::str {
         self.value
     }

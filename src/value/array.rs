@@ -33,6 +33,7 @@ where
         })
     }
 
+    /// An iterator over values in the array.
     pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, P>, crate::Error> {
         let elt_type = self.schema.elt_type()?;
         let elt_size = elt_type.size()?;

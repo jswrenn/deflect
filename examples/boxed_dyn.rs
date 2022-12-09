@@ -1,4 +1,4 @@
-use deflect::{value::Array, DebugInfoProvider, Reflect};
+use deflect::Reflect;
 use std::error::Error;
 
 struct Foo;

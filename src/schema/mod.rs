@@ -286,6 +286,7 @@ where
         })
     }
 
+    /// The size of the type.
     pub fn size(&self) -> Result<std::primitive::u64, crate::Error> {
         match self {
             Self::bool(v) => Ok(v.size()),

@@ -30,7 +30,6 @@ where
     }
 }
 
-
 impl<'value, 'dwarf, P> Slice<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
@@ -97,4 +96,3 @@ where
         debug_list.finish()
     }
 }
-

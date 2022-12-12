@@ -33,16 +33,20 @@ pub use str_impl::str;
 pub use variant::Variant;
 
 /// A reflected shared reference value.
-pub type SharedRef<'value, 'dwarf, P = crate::DefaultProvider> = crate::value::Pointer<'value, 'dwarf, crate::schema::Shared, P>;
+pub type SharedRef<'value, 'dwarf, P = crate::DefaultProvider> =
+    crate::value::Pointer<'value, 'dwarf, crate::schema::Shared, P>;
 
 /// A reflected unique reference value.
-pub type UniqueRef<'value, 'dwarf, P = crate::DefaultProvider> = crate::value::Pointer<'value, 'dwarf, crate::schema::Unique, P>;
+pub type UniqueRef<'value, 'dwarf, P = crate::DefaultProvider> =
+    crate::value::Pointer<'value, 'dwarf, crate::schema::Unique, P>;
 
 /// A reflected `const` pointer value.
-pub type ConstPtr<'value, 'dwarf, P = crate::DefaultProvider> = crate::value::Pointer<'value, 'dwarf, crate::schema::Const, P>;
+pub type ConstPtr<'value, 'dwarf, P = crate::DefaultProvider> =
+    crate::value::Pointer<'value, 'dwarf, crate::schema::Const, P>;
 
 /// A reflected `mut` pointer value.
-pub type MutPtr<'value, 'dwarf, P = crate::DefaultProvider> = crate::value::Pointer<'value, 'dwarf, crate::schema::Mut, P>;
+pub type MutPtr<'value, 'dwarf, P = crate::DefaultProvider> =
+    crate::value::Pointer<'value, 'dwarf, crate::schema::Mut, P>;
 
 pub use super::Value;
 

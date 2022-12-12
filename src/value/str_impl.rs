@@ -37,7 +37,7 @@ where
 
         Ok(str {
             value,
-            schema:self,
+            schema: self,
             _provider: provider,
         })
     }

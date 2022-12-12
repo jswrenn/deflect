@@ -571,7 +571,6 @@ generate_type_and_value! {
     MutPtr,
 }
 
-
 fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
     expected: crate::gimli::DwTag,

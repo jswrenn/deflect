@@ -46,6 +46,7 @@ where
     }
 }
 
+/*
 impl<'value, 'dwarf, P> Box<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
@@ -60,7 +61,7 @@ where
         let value = unsafe { &*value };
         Ok(value)
     }
-}
+}*/
 
 impl<'value, 'dwarf, P> fmt::Debug for Box<'value, 'dwarf, P>
 where

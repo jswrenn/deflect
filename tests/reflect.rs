@@ -51,7 +51,6 @@ fn braced_struct() -> Result<(), Box<dyn std::error::Error>> {
     let context = deflect::default_provider()?;
     let value = erased.reflect(&context)?;
     assert_eq!(value.to_string(), "BracedStruct { foo: 42 }");
-    println!("{:#}", DisplayDebug(&value));
     Ok(())
 }
 

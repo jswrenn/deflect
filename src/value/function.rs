@@ -7,7 +7,7 @@ where
 {
     _value: crate::Bytes<'value>,
     schema: crate::schema::Function<'dwarf, P::Reader>,
-    provider: &'dwarf P,
+    _provider: &'dwarf P,
 }
 
 impl<'dwarf, R> crate::schema::Function<'dwarf, R>
@@ -25,7 +25,7 @@ where
         Ok(Function {
             schema: self,
             _value: value,
-            provider,
+            _provider: provider,
         })
     }
 }

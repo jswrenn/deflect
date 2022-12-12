@@ -8,7 +8,8 @@
 pub extern crate anyhow;
 use anyhow::Error;
 
-use addr2line::{gimli, object};
+pub use addr2line::{self, gimli, object};
+
 use dashmap::DashMap;
 use gimli::{AttributeValue, EndianReader, RunTimeEndian, UnitOffset};
 use once_cell::sync::Lazy;
@@ -560,7 +561,14 @@ fn get<R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<AttributeValue<R>, crate::Error> {
     entry
         .attr_value(attr)?
-        .ok_or(crate::error::missing_attr(attr))
+        .ok_or_else(|| crate::error::missing_attr(attr))
+}
+
+fn get_opt<R: crate::gimli::Reader<Offset = usize>>(
+    entry: &crate::gimli::DebuggingInformationEntry<R>,
+    attr: crate::gimli::DwAt,
+) -> Result<Option<AttributeValue<R>>, crate::Error> {
+    Ok(entry.attr_value(attr)?)
 }
 
 fn get_size<R: crate::gimli::Reader<Offset = usize>>(

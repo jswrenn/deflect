@@ -30,9 +30,13 @@ where
         unit: &crate::gimli::Unit<R, usize>,
         entry: &crate::gimli::DebuggingInformationEntry<'_, '_, R>,
     ) -> Result<Option<Self>, crate::Error> {
-        let name = crate::get(entry, crate::gimli::DW_AT_name)?;
-        let name = dwarf.attr_string(unit, name)?;
-        Ok(Some(Self { name }))
+        let name = crate::get_opt(entry, crate::gimli::DW_AT_name)?;
+        Ok(if let Some(name) = name {
+            let name = dwarf.attr_string(unit, name)?;
+            Some(Self { name })
+        } else {
+            None
+        })
     }
 
     /// Convert all remaining data to a clone-on-write string.

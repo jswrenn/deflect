@@ -53,12 +53,12 @@ where
 
     /// The size of this field, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_size_opt(self.entry())?)
+        crate::get_size_opt(self.entry())
     }
 
     /// The alignment of this field, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_align(self.entry())?)
+        crate::get_align(self.entry())
     }
 
     /// The offset at which this field occurs.

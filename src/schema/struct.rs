@@ -52,12 +52,12 @@ where
 
     /// The size of this field, in bytes.
     pub fn size(&self) -> Result<u64, crate::Error> {
-        Ok(crate::get_size(self.entry())?)
+        crate::get_size(self.entry())
     }
 
     /// The alignment of this field, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_align(self.entry())?)
+        crate::get_align(self.entry())
     }
 
     /// The fields of this struct.

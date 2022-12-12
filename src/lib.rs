@@ -232,7 +232,7 @@ where
     }
 
     let Some(ty) = ty else {
-        return Err(error::missing_child(crate::gimli::DW_TAG_template_type_parameter).into())
+        return Err(error::missing_child(crate::gimli::DW_TAG_template_type_parameter))
     };
 
     Ok((unit, ty))

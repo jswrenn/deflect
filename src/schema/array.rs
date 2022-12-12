@@ -76,7 +76,7 @@ where
         let elt_type = self.elt_type()?;
         let elt_size = elt_type.size()?;
         len.checked_mul(elt_size)
-            .ok_or_else(|| crate::error::arithmetic_overflow())
+            .ok_or_else(crate::error::arithmetic_overflow)
     }
 }
 

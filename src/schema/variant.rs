@@ -56,12 +56,12 @@ where
 
     /// The size of this variant, in bytes.
     pub fn size(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_size_opt(self.entry())?)
+        crate::get_size_opt(self.entry())
     }
 
     /// The alignment of this variant, in bytes.
     pub fn align(&self) -> Result<Option<u64>, crate::Error> {
-        Ok(crate::get_align(self.entry())?)
+        crate::get_align(self.entry())
     }
 
     /// The file the variant was defined in (if available).

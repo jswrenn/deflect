@@ -24,7 +24,7 @@ where
     {
         Ok(Pointer {
             schema: self,
-            value: value,
+            value,
             provider,
         })
     }

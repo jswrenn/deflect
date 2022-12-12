@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 /// A reflected enum variant value.
-pub struct Variant<'value, 'dwarf, P>
+pub struct Variant<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {

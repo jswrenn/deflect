@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// A reflected [`Box`]'d slice.
-pub struct BoxedSlice<'value, 'dwarf, P>
+pub struct BoxedSlice<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,22 +10,30 @@ where
     provider: &'dwarf P,
 }
 
+impl<'dwarf, R> crate::schema::BoxedSlice<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
+        provider: &'dwarf P,
+        value: crate::Bytes<'value>,
+    ) -> Result<BoxedSlice<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        Ok(BoxedSlice {
+            schema: self,
+            value,
+            provider,
+        })
+    }
+}
+
 impl<'value, 'dwarf, P> BoxedSlice<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::BoxedSlice<'dwarf, P::Reader>,
-        provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        Ok(Self {
-            value,
-            schema,
-            provider,
-        })
-    }
-
     /// The `data_ptr` field of this boxed slice.
     pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =
@@ -36,7 +44,7 @@ where
         Ok(ptr)
     }
 
-    /// The [`length`] field of this boxed slice.
+    /// The `length` field of this boxed slice.
     pub fn length(&self) -> Result<usize, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.length().clone(), self.value, self.provider) };
@@ -87,51 +95,5 @@ where
         }
         debug_list.finish()?;
         f.write_str("[..]")
-    }
-}
-
-impl<'value, 'dwarf, P> From<BoxedSlice<'value, 'dwarf, P>> for super::Value<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    fn from(value: BoxedSlice<'value, 'dwarf, P>) -> Self {
-        super::Value::BoxedSlice(value)
-    }
-}
-
-impl<'a, 'value, 'dwarf, P> TryFrom<&'a super::Value<'value, 'dwarf, P>>
-    for &'a BoxedSlice<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Error = crate::error::Downcast;
-
-    fn try_from(value: &'a super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
-        if let super::Value::BoxedSlice(value) = value {
-            Ok(value)
-        } else {
-            Err(crate::error::Downcast::new::<
-                &'a super::Value<'value, 'dwarf, P>,
-                Self,
-            >())
-        }
-    }
-}
-
-impl<'value, 'dwarf, P> TryFrom<super::Value<'value, 'dwarf, P>> for BoxedSlice<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Error = crate::error::Downcast;
-
-    fn try_from(value: super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
-        if let super::Value::BoxedSlice(value) = value {
-            Ok(value)
-        } else {
-            Err(crate::error::Downcast::new::<
-                super::Value<'value, 'dwarf, P>,
-                Self,
-            >())
-        }
     }
 }

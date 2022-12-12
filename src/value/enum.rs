@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 /// A value of a sum type; e.g., a Rust-style enum.
-pub struct Enum<'value, 'dwarf, P>
+pub struct Enum<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,24 +10,32 @@ where
     provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, P> Enum<'value, 'dwarf, P>
+impl<'dwarf, R> crate::schema::Enum<'dwarf, R>
 where
-    P: crate::DebugInfoProvider,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::Enum<'dwarf, P::Reader>,
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
         provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        let size = schema.size()?.try_into()?;
+        value: crate::Bytes<'value>,
+    ) -> Result<Enum<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        let size = self.size()?.try_into()?;
         let value = &value[..size];
-        Ok(Self {
-            schema,
+        Ok(Enum {
+            schema: self,
             value,
             provider,
         })
     }
+}
 
+impl<'value, 'dwarf, P> Enum<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
     /// The variant of this enum.
     pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, P>, crate::Error> {
         let mut default = None;
@@ -57,7 +65,9 @@ where
             }
         }
 
-        let schema = matched.or(default).ok_or(crate::error::Kind::Other)?;
+        let schema = matched
+            .or(default)
+            .ok_or(crate::error::Kind::enum_destructure())?;
         Ok(unsafe { super::Variant::new(schema, self.value, self.provider) })
     }
 }

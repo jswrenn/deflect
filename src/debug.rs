@@ -76,7 +76,6 @@ where
             if name == crate::gimli::DW_AT_frame_base {
                 continue;
             }
-
             let value = attr.value();
             if let Ok(value_as_string) = self.dwarf.attr_string(self.unit, value) {
                 if let Ok(value_as_string) = value_as_string.to_string_lossy() {

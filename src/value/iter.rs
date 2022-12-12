@@ -1,5 +1,5 @@
 /// An iterator over items in an [array][super::Array] or [slice][super::Slice].
-pub struct Iter<'value, 'dwarf, P>
+pub struct Iter<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {

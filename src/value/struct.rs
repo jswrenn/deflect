@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 /// A reflected struct value.
-pub struct Struct<'value, 'dwarf, P>
+pub struct Struct<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,22 +10,30 @@ where
     provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, P> Struct<'value, 'dwarf, P>
+impl<'dwarf, R> crate::schema::Struct<'dwarf, R>
 where
-    P: crate::DebugInfoProvider,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::Struct<'dwarf, P::Reader>,
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
         provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        Ok(Self {
-            schema,
+        value: crate::Bytes<'value>,
+    ) -> Result<Struct<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        Ok(Struct {
+            schema: self,
             value,
             provider,
         })
     }
+}
 
+impl<'value, 'dwarf, P> Struct<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
     /// The fields of this struct.
     pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, P>, crate::Error> {
         let fields = self.schema.fields()?;

@@ -47,7 +47,7 @@ impl Error {
         &self.kind
     }
 
-    /// The backtrace from where the error occurred. 
+    /// The backtrace from where the error occurred.
     pub fn stacktrace(&self) -> &Stacktrace {
         &self.stacktrace
     }
@@ -173,11 +173,15 @@ mod dbginfo_provider {
     }
 }
 
-/// The default provider of DWARF debug info.
-pub fn default_provider() -> Result<impl DebugInfoProvider, crate::Error> {
+pub(crate) mod private {
     #[derive(Copy, Clone)]
     pub struct DefaultProvider {}
+}
 
+pub(crate) use private::DefaultProvider;
+
+/// The default provider of DWARF debug info.
+pub fn default_provider() -> Result<DefaultProvider, crate::Error> {
     unsafe impl DebugInfoProvider for DefaultProvider {
         type Reader = Addr2LineReader;
 
@@ -271,103 +275,302 @@ impl fmt::Debug for dyn Reflect {
     }
 }
 
-/// A reflected value.
-#[allow(non_camel_case_types)]
-#[non_exhaustive]
-pub enum Value<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    /// A reflected [`prim@bool`] value.
-    bool(value::bool<'value, 'dwarf, P>),
+macro_rules! generate_type_and_value {
+    ($($(#[$attr:meta])* $t:ident,)*) => {
+        /// A reflected type.
+        #[allow(non_camel_case_types)]
+        #[derive(Debug, Clone)]
+        #[non_exhaustive]
+        pub enum Type<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = usize>,
+        {
+            $(
+                $(#[$attr])*
+                $t(schema::$t::<'dwarf, R>),
+            )*
+        }
 
-    /// A reflected [`prim@char`] value.
-    char(value::char<'value, 'dwarf, P>),
+        impl<'dwarf, R> fmt::Display for Type<'dwarf, R>
+        where
+            R: crate::gimli::Reader<Offset = usize>,
+        {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(Self::$t(v) => v.fmt(f),)*
+                }
+            }
+        }
 
-    /// A reflected [`prim@f32`] value.
-    f32(value::f32<'value, 'dwarf, P>),
+        $(
+            #[doc = concat!(
+                "Upcast a [`",
+                stringify!($t),
+                "<'dwarf, R>`][crate::schema::",
+                stringify!($t),
+                "] into a [`Type<'dwarf, R>`][Type].",
+            )]
+            impl<'dwarf, R> From<crate::schema::$t<'dwarf, R>>
+            for Type<'dwarf, R>
+            where
+                R: crate::gimli::Reader<Offset = std::primitive::usize>,
+            {
+                fn from(atom: crate::schema::$t<'dwarf, R>) -> Self {
+                    Type::$t(atom)
+                }
+            }
 
-    /// A reflected [`prim@f64`] value.
-    f64(value::f64<'value, 'dwarf, P>),
+            #[doc = concat!(
+                "Attempt to downcast a [`Type<'dwarf, R>`][Type] into a [`",
+                stringify!($t),
+                "<'dwarf, R>`][crate::schema::",
+                stringify!($t),
+                "].",
+            )]
+            impl<'value, 'dwarf, R> TryFrom<Type<'dwarf, R>> for crate::schema::$t<'dwarf, R>
+            where
+                R: crate::gimli::Reader<Offset = std::primitive::usize>,
+            {
+                type Error = crate::error::Downcast;
 
-    /// A reflected [`prim@i8`] value.
-    i8(value::i8<'value, 'dwarf, P>),
+                fn try_from(value: Type<'dwarf, R>) -> Result<Self, Self::Error> {
+                    if let Type::$t(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(crate::error::Downcast::new::<Type<'dwarf, R>, Self>())
+                    }
+                }
+            }
 
-    /// A reflected [`prim@i16`] value.
-    i16(value::i16<'value, 'dwarf, P>),
+            #[doc = concat!(
+                "Attempt to downcast a [`&Type<'dwarf, R>`][Type] into a [`&",
+                stringify!($t),
+                "<'dwarf, R>`][crate::schema::",
+                stringify!($t),
+                "].",
+            )]
+            impl<'a, 'value, 'dwarf, R> TryFrom<&'a Type<'dwarf, R>>
+                for &'a crate::schema::$t<'dwarf, R>
+            where
+                R: crate::gimli::Reader<Offset = std::primitive::usize>,
+            {
+                type Error = crate::error::Downcast;
 
-    /// A reflected [`prim@i32`] value.
-    i32(value::i32<'value, 'dwarf, P>),
+                fn try_from(value: &'a Type<'dwarf, R>) -> Result<Self, Self::Error> {
+                    if let Type::$t(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(crate::error::Downcast::new::<
+                            &'a Type<'dwarf, R>,
+                            Self,
+                        >())
+                    }
+                }
+            }
+        )*
 
-    /// A reflected [`prim@i64`] value.
-    i64(value::i64<'value, 'dwarf, P>),
+        /// A reflected value.
+        #[allow(non_camel_case_types)]
+        #[derive(Debug)]
+        #[non_exhaustive]
+        pub enum Value<'value, 'dwarf, P = crate::DefaultProvider>
+        where
+            P: crate::DebugInfoProvider,
+        {
+            $(
+                $(#[$attr])*
+                $t(value::$t::<'value, 'dwarf, P>),
+            )*
+        }
 
-    /// A reflected [`prim@i128`] value.
-    i128(value::i128<'value, 'dwarf, P>),
+        impl<'value, 'dwarf, P> Value<'value, 'dwarf, P>
+        where
+            P: crate::DebugInfoProvider,
+        {
+            /// Safety: `value` absolutely must have the correct `type`.
+            pub(crate) unsafe fn with_type(
+                r#type: crate::schema::Type<'dwarf, P::Reader>,
+                value: crate::Bytes<'value>,
+                provider: &'dwarf P,
+            ) -> Result<Self, crate::Error> {
+                match r#type {
+                    $(crate::schema::Type::$t(schema) => schema.with_bytes(provider, value).map(Self::$t),)*
+                }
+            }
+        }
 
-    /// A reflected [`prim@isize`] value.
-    isize(value::isize<'value, 'dwarf, P>),
+        impl<'value, 'dwarf, P> fmt::Display for Value<'value, 'dwarf, P>
+        where
+            P: crate::DebugInfoProvider,
+        {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(Self::$t(v) => v.fmt(f),)*
+                }
+            }
+        }
 
-    /// A reflected [`prim@u8`] value.
-    u8(value::u8<'value, 'dwarf, P>),
+        $(
+            #[doc = concat!(
+                "Upcast a [`",
+                stringify!($t),
+                "<'value, 'dwarf, P>`][value::",
+                stringify!($t),
+                "] into a [`Value<'value, 'dwarf, P>`][Value].",
+            )]
+            impl<'value, 'dwarf, P> From<value::$t<'value, 'dwarf, P>>
+            for Value<'value, 'dwarf, P>
+            where
+                P: crate::DebugInfoProvider,
+            {
+                fn from(atom: value::$t<'value, 'dwarf, P>) -> Self {
+                    Value::$t(atom)
+                }
+            }
 
-    /// A reflected [`prim@u16`] value.
-    u16(value::u16<'value, 'dwarf, P>),
+            #[doc = concat!(
+                "Attempt to downcast a [`Value<'value, 'dwarf, P>`][Value] into a [`",
+                stringify!($t),
+                "<'value, 'dwarf, P>`][value::",
+                stringify!($t),
+                "].",
+            )]
+            impl<'value, 'dwarf, P> TryFrom<Value<'value, 'dwarf, P>> for value::$t<'value, 'dwarf, P>
+            where
+                P: crate::DebugInfoProvider,
+            {
+                type Error = crate::error::Downcast;
 
-    /// A reflected [`prim@u32`] value.
-    u32(value::u32<'value, 'dwarf, P>),
+                fn try_from(value: Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
+                    if let Value::$t(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(crate::error::Downcast::new::<Value<'value, 'dwarf, P>, Self>())
+                    }
+                }
+            }
 
-    /// A reflected [`prim@u64`] value.
-    u64(value::u64<'value, 'dwarf, P>),
+            #[doc = concat!(
+                "Attempt to downcast a [`&Value<'value, 'dwarf, P>`][Value] into a [`&",
+                stringify!($t),
+                "<'value, 'dwarf, P>`][value::",
+                stringify!($t),
+                "].",
+            )]
+            impl<'a, 'value, 'dwarf, P> TryFrom<&'a Value<'value, 'dwarf, P>>
+                for &'a value::$t<'value, 'dwarf, P>
+            where
+                P: crate::DebugInfoProvider,
+            {
+                type Error = crate::error::Downcast;
 
-    /// A reflected [`prim@u128`] value.
-    u128(value::u128<'value, 'dwarf, P>),
-
-    /// A reflected [`prim@usize`] value.
-    usize(value::usize<'value, 'dwarf, P>),
-
-    /// A reflected [`()`][prim@unit] value.
-    unit(value::unit<'value, 'dwarf, P>),
-
-    /// A reflected [`str`][prim@str] value.
-    str(value::str<'value, 'dwarf, P>),
-
-    /// A reflected array value.
-    Array(value::Array<'value, 'dwarf, P>),
-
-    /// A reflected [`Box`] value.
-    Box(value::Box<'value, 'dwarf, P>),
-
-    /// A reflected [`Box`]'d slice value.
-    BoxedSlice(value::BoxedSlice<'value, 'dwarf, P>),
-
-    /// A reflected [`Box`]'d dyn value.
-    BoxedDyn(value::BoxedDyn<'value, 'dwarf, P>),
-
-    /// A reflected slice value.
-    Slice(value::Slice<'value, 'dwarf, P>),
-
-    /// A reflected struct value.
-    Struct(value::Struct<'value, 'dwarf, P>),
-
-    /// A reflected enum value.
-    Enum(value::Enum<'value, 'dwarf, P>),
-
-    /// A reflected function value.
-    Function(value::Function<'value, 'dwarf, P>),
-
-    /// A reflected shared reference value.
-    SharedRef(value::Pointer<'value, 'dwarf, crate::schema::Shared, P>),
-
-    /// A reflected unique reference value.
-    UniqueRef(value::Pointer<'value, 'dwarf, crate::schema::Unique, P>),
-
-    /// A reflected `const` pointer value.
-    ConstPtr(value::Pointer<'value, 'dwarf, crate::schema::Const, P>),
-
-    /// A reflected `mut` pointer value.
-    MutPtr(value::Pointer<'value, 'dwarf, crate::schema::Mut, P>),
+                fn try_from(value: &'a Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
+                    if let Value::$t(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(crate::error::Downcast::new::<
+                            &'a Value<'value, 'dwarf, P>,
+                            Self,
+                        >())
+                    }
+                }
+            }
+        )*
+    }
 }
+
+generate_type_and_value! {
+    /// A reflected [`prim@bool`].
+    bool,
+
+    /// A reflected [`prim@char`].
+    char,
+
+    /// A reflected [`prim@f32`].
+    f32,
+
+    /// A reflected [`prim@f64`].
+    f64,
+
+    /// A reflected [`prim@i8`].
+    i8,
+
+    /// A reflected [`prim@i16`].
+    i16,
+
+    /// A reflected [`prim@i32`].
+    i32,
+
+    /// A reflected [`prim@i64`].
+    i64,
+
+    /// A reflected [`prim@i128`].
+    i128,
+
+    /// A reflected [`prim@isize`].
+    isize,
+
+    /// A reflected [`prim@u8`].
+    u8,
+
+    /// A reflected [`prim@u16`].
+    u16,
+
+    /// A reflected [`prim@u32`].
+    u32,
+
+    /// A reflected [`prim@u64`].
+    u64,
+
+    /// A reflected [`prim@u128`].
+    u128,
+
+    /// A reflected [`prim@usize`].
+    usize,
+
+    /// A reflected [`()`][prim@unit].
+    unit,
+
+    /// A reflected [`str`][prim@str].
+    str,
+
+    /// A reflected [`array`][prim@array].
+    Array,
+
+    /// A reflected [`Box`].
+    Box,
+
+    /// A reflected [`Box`]'d slice.
+    BoxedSlice,
+
+    /// A reflected [`Box`]'d dyn.
+    BoxedDyn,
+
+    /// A reflected slice.
+    Slice,
+
+    /// A reflected struct.
+    Struct,
+
+    /// A reflected enum.
+    Enum,
+
+    /// A reflected function.
+    Function,
+
+    /// A reflected shared reference.
+    SharedRef,
+
+    /// A reflected unique reference.
+    UniqueRef,
+
+    /// A reflected `const` pointer.
+    ConstPtr,
+
+    /// A reflected `mut` pointer.
+    MutPtr,
+}
+
 
 fn check_tag<R: crate::gimli::Reader<Offset = usize>>(
     entry: &crate::gimli::DebuggingInformationEntry<R>,
@@ -537,38 +740,4 @@ where
 fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
     eprintln!("ERROR: {}", err);
     fmt::Error
-}
-
-fn to_static_addr(dynamic_addr: usize) -> Result<usize, crate::Error> {
-    use std::{
-        fs,
-        io::{BufRead, BufReader},
-        process,
-    };
-    let pid = process::id();
-    let proc_maps_filename = format!("/proc/{}/maps", pid);
-
-    let file = fs::File::open(proc_maps_filename).unwrap();
-    let reader = BufReader::new(file);
-
-    for (_, line) in reader.lines().enumerate() {
-        let line = line.unwrap();
-        let mut tokens = line.split(' ');
-
-        let range = tokens.next().unwrap();
-        let (section_start_addr, section_end_addr) = {
-            let mut tokens = range.split(|c| c == '-' || c == ' ');
-            let section_start_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
-            let section_end_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
-            (section_start_addr, section_end_addr)
-        };
-        let _permissions = tokens.next().unwrap();
-        let offset_addr = usize::from_str_radix(tokens.next().unwrap(), 16).unwrap();
-
-        if dynamic_addr >= section_start_addr && dynamic_addr < section_end_addr {
-            return Ok((dynamic_addr - section_start_addr) + offset_addr);
-        }
-    }
-
-    Err(error::Kind::Other.into())
 }

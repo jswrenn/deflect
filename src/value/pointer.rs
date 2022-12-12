@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 /// A reflected pointer or reference.
-pub struct Pointer<'value, 'dwarf, K, P>
+pub struct Pointer<'value, 'dwarf, K, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,19 +10,22 @@ where
     provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, K, P> Pointer<'value, 'dwarf, K, P>
+impl<'dwarf, K, R> crate::schema::Pointer<'dwarf, K, R>
 where
-    P: crate::DebugInfoProvider,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::Pointer<'dwarf, K, P::Reader>,
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
         provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        Ok(Self {
+        value: crate::Bytes<'value>,
+    ) -> Result<Pointer<'value, 'dwarf, K, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        Ok(Pointer {
+            schema: self,
+            value: value,
             provider,
-            schema,
-            value,
         })
     }
 }

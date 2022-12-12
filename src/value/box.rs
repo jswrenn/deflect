@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 /// A reflected [`Box`] value.
-pub struct Box<'value, 'dwarf, P>
+pub struct Box<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,17 +10,20 @@ where
     provider: &'dwarf P,
 }
 
-impl<'value, 'dwarf, P> Box<'value, 'dwarf, P>
+impl<'dwarf, R> crate::schema::Box<'dwarf, R>
 where
-    P: crate::DebugInfoProvider,
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::Box<'dwarf, P::Reader>,
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
         provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        Ok(Self {
-            schema,
+        value: crate::Bytes<'value>,
+    ) -> Result<Box<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        Ok(Box {
+            schema: self,
             value,
             provider,
         })

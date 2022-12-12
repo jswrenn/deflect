@@ -11,8 +11,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let data: Box<dyn Trait> = Box::new(Foo);
     let erased: &dyn Reflect = &data;
     let context = deflect::default_provider()?;
-    let value = erased.reflect(&context)?;
-    let value: deflect::value::BoxedDyn<_> = value.try_into()?;
+    let value: deflect::Value = erased.reflect(&context)?;
+    let value: deflect::value::BoxedDyn = value.try_into()?;
     println!("{value:#}");
     Ok(())
 }

@@ -1,7 +1,7 @@
 /// Fields of a [struct][super::Struct] or an [enum variant][super::Variant].
 ///
 /// Call [`iter`][Self::iter] to iterate over variants.
-pub struct Fields<'value, 'dwarf, P>
+pub struct Fields<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -39,7 +39,7 @@ where
 }
 
 /// An iterator over variants.
-pub struct FieldsIter<'value, 'tree, 'dwarf, P>
+pub struct FieldsIter<'value, 'tree, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {

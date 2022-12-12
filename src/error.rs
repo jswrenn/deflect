@@ -36,6 +36,10 @@ pub enum Kind {
     Object(#[from] crate::object::read::Error),
     #[error(transparent)]
     Ref(#[from] &'static super::Error),
+    #[error(transparent)]
+    ArithmeticOverflow(ArithmeticOverflow),
+    #[error(transparent)]
+    EnumDestructure(EnumDestructure),
     #[error("other")]
     Other,
 }
@@ -79,6 +83,14 @@ impl Kind {
 
     pub(crate) fn missing_debug_info() -> Self {
         Self::MissingDebugInfo(MissingDebugInfo { _field: () })
+    }
+
+    pub(crate) fn arithmetic_overflow() -> Self {
+        Self::ArithmeticOverflow(ArithmeticOverflow { _field: () })
+    }
+
+    pub(crate) fn enum_destructure() -> Self {
+        Self::EnumDestructure(EnumDestructure { _field: () })
     }
 }
 
@@ -168,5 +180,19 @@ pub struct MissingSymbolAddress {
 #[derive(thiserror::Error, Debug)]
 #[error("Could not find debug info for symbol address.")]
 pub struct MissingDebugInfo {
+    _field: (),
+}
+
+/// Arithmetic operation overflowed.
+#[derive(thiserror::Error, Debug)]
+#[error("An arithmetic operation unexpectedly overflowed.")]
+pub struct ArithmeticOverflow {
+    _field: (),
+}
+
+/// A reflected `enum` could not be destructured into its variant.
+#[derive(thiserror::Error, Debug)]
+#[error("A reflected `enum` could not be destructured into its variant. This is a bug.")]
+pub struct EnumDestructure {
     _field: (),
 }

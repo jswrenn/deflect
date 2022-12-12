@@ -38,75 +38,17 @@ pub use slice::Slice;
 pub use str_impl::str;
 pub use variants::{Variants, VariantsIter};
 
-/// A reflected language type.
-#[allow(non_camel_case_types)]
-#[derive(Clone)]
-#[non_exhaustive]
-pub enum Type<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = primitive::usize>,
-{
-    /// A reflected [`prim@bool`].
-    bool(bool<'dwarf, R>),
-    /// A reflected [`prim@char`].
-    char(char<'dwarf, R>),
-    /// A reflected [`prim@f32`].
-    f32(f32<'dwarf, R>),
-    /// A reflected [`prim@f64`].
-    f64(f64<'dwarf, R>),
-    /// A reflected [`prim@i8`].
-    i8(i8<'dwarf, R>),
-    /// A reflected [`prim@i16`].
-    i16(i16<'dwarf, R>),
-    /// A reflected [`prim@i32`].
-    i32(i32<'dwarf, R>),
-    /// A reflected [`prim@i64`].
-    i64(i64<'dwarf, R>),
-    /// A reflected [`prim@i128`].
-    i128(i128<'dwarf, R>),
-    /// A reflected [`prim@isize`].
-    isize(isize<'dwarf, R>),
-    /// A reflected [`prim@u8`].
-    u8(u8<'dwarf, R>),
-    /// A reflected [`prim@u16`].
-    u16(u16<'dwarf, R>),
-    /// A reflected [`prim@u32`].
-    u32(u32<'dwarf, R>),
-    /// A reflected [`prim@u64`].
-    u64(u64<'dwarf, R>),
-    /// A reflected [`prim@u128`].
-    u128(u128<'dwarf, R>),
-    /// A reflected [`prim@usize`].
-    usize(usize<'dwarf, R>),
-    /// A reflected [`()`][prim@unit].
-    unit(unit<'dwarf, R>),
-    /// A reflected [`[T; N]`][prim@array].
-    Array(Array<'dwarf, R>),
-    /// A reflected [`&[T]`][prim@slice].
-    Slice(Slice<'dwarf, R>),
-    /// A reflected [`str`][prim@str].
-    str(str<'dwarf, R>),
-    /// A reflected [`Box`].
-    Box(Box<'dwarf, R>),
-    /// A reflected [`Box`]'d slice.
-    BoxedSlice(BoxedSlice<'dwarf, R>),
-    /// A reflected [`Box`]'d `dyn Trait`.
-    BoxedDyn(BoxedDyn<'dwarf, R>),
-    /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.struct.html).
-    Struct(Struct<'dwarf, R>),
-    /// A reflected [`struct`](https://doc.rust-lang.org/std/keyword.enum.html).
-    Enum(Enum<'dwarf, R>),
-    /// A shared reference type.
-    SharedRef(Pointer<'dwarf, pointer::Shared, R>),
-    /// A unique reference type.
-    UniqueRef(Pointer<'dwarf, pointer::Unique, R>),
-    /// A `const` pointer type.
-    ConstPtr(Pointer<'dwarf, pointer::Const, R>),
-    /// A `mut` pointer type.
-    MutPtr(Pointer<'dwarf, pointer::Mut, R>),
-    /// A reflected [`fn`][prim@fn].
-    Function(function::Function<'dwarf, R>),
-}
+/// A reflected shared reference type.
+pub type SharedRef<'dwarf, R> = crate::schema::Pointer<'dwarf, crate::schema::Shared, R>;
+
+/// A reflected unique reference type.
+pub type UniqueRef<'dwarf, R> = crate::schema::Pointer<'dwarf, crate::schema::Unique, R>;
+
+/// A reflected `const` pointer type.
+pub type ConstPtr<'dwarf, R> = crate::schema::Pointer<'dwarf, crate::schema::Const, R>;
+
+/// A reflected `mut` pointer type.
+pub type MutPtr<'dwarf, R> = crate::schema::Pointer<'dwarf, crate::schema::Mut, R>;
 
 impl<'dwarf, R> Type<'dwarf, R>
 where
@@ -165,16 +107,25 @@ where
                     let schema = Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
                     let mut fields = schema.fields()?;
                     let mut fields = fields.iter()?;
-                    let pointer = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
-                    let metadata = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
+                    let pointer = fields.try_next()?;
+                    let pointer = pointer.ok_or(crate::error::Kind::missing_child(
+                        crate::gimli::DW_TAG_member,
+                    ))?;
+                    let metadata = fields.try_next()?;
+                    let metadata = metadata.ok_or(crate::error::Kind::missing_child(
+                        crate::gimli::DW_TAG_member,
+                    ))?;
                     let metadata_name = metadata.name()?;
-                    let metadata_name = metadata_name.to_slice()?;
-                    return match metadata_name.as_ref() {
+                    let metadata_name_slice = metadata_name.to_slice()?;
+                    return match metadata_name_slice.as_ref() {
                         b"length" => {
                             BoxedSlice::new(schema, pointer, metadata).map(Self::BoxedSlice)
                         }
                         b"vtable" => BoxedDyn::new(schema, pointer, metadata).map(Self::BoxedDyn),
-                        _ => Err(crate::error::Kind::Other.into()),
+                        _ => Err(crate::error::Kind::name_mismatch(
+                            "`length` or `vtable`",
+                            metadata_name.to_string_lossy()?.into_owned(),
+                        ))?,
                     };
                 } else {
                     let mut tree = unit.entries_tree(Some(entry.offset()))?;
@@ -278,7 +229,7 @@ where
             }
             _otherwise => {
                 eprintln!(
-                    "{:#?}",
+                    "UNHANDLED DEBUG ENTRY:\n{:#?}",
                     &crate::debug::DebugEntry::new(dwarf, unit, &entry,)
                 );
                 return Err(crate::error::Kind::Other.into());
@@ -323,85 +274,7 @@ where
     }
 }
 
-impl<'value, 'dwarf, R> fmt::Debug for Type<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = std::primitive::usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::bool(v) => v.fmt(f),
-            Self::char(v) => v.fmt(f),
-            Self::f32(v) => v.fmt(f),
-            Self::f64(v) => v.fmt(f),
-            Self::i8(v) => v.fmt(f),
-            Self::i16(v) => v.fmt(f),
-            Self::i32(v) => v.fmt(f),
-            Self::i64(v) => v.fmt(f),
-            Self::i128(v) => v.fmt(f),
-            Self::isize(v) => v.fmt(f),
-            Self::u8(v) => v.fmt(f),
-            Self::u16(v) => v.fmt(f),
-            Self::u32(v) => v.fmt(f),
-            Self::u64(v) => v.fmt(f),
-            Self::u128(v) => v.fmt(f),
-            Self::usize(v) => v.fmt(f),
-            Self::unit(v) => v.fmt(f),
-            Self::Box(v) => v.fmt(f),
-            Self::BoxedSlice(v) => v.fmt(f),
-            Self::BoxedDyn(v) => v.fmt(f),
-            Self::Array(v) => v.fmt(f),
-            Self::Slice(v) => v.fmt(f),
-            Self::str(v) => v.fmt(f),
-            Self::Struct(v) => v.fmt(f),
-            Self::Enum(v) => v.fmt(f),
-            Self::Function(v) => v.fmt(f),
-            Self::SharedRef(v) => v.fmt(f),
-            Self::UniqueRef(v) => v.fmt(f),
-            Self::ConstPtr(v) => v.fmt(f),
-            Self::MutPtr(v) => v.fmt(f),
-        }
-    }
-}
-
-impl<'value, 'dwarf, R> fmt::Display for Type<'dwarf, R>
-where
-    R: crate::gimli::Reader<Offset = std::primitive::usize>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::bool(v) => v.fmt(f),
-            Self::char(v) => v.fmt(f),
-            Self::f32(v) => v.fmt(f),
-            Self::f64(v) => v.fmt(f),
-            Self::i8(v) => v.fmt(f),
-            Self::i16(v) => v.fmt(f),
-            Self::i32(v) => v.fmt(f),
-            Self::i64(v) => v.fmt(f),
-            Self::i128(v) => v.fmt(f),
-            Self::isize(v) => v.fmt(f),
-            Self::u8(v) => v.fmt(f),
-            Self::u16(v) => v.fmt(f),
-            Self::u32(v) => v.fmt(f),
-            Self::u64(v) => v.fmt(f),
-            Self::u128(v) => v.fmt(f),
-            Self::usize(v) => v.fmt(f),
-            Self::unit(v) => v.fmt(f),
-            Self::Box(v) => v.fmt(f),
-            Self::BoxedSlice(v) => v.fmt(f),
-            Self::BoxedDyn(v) => v.fmt(f),
-            Self::Array(v) => v.fmt(f),
-            Self::Slice(v) => v.fmt(f),
-            Self::str(v) => v.fmt(f),
-            Self::Struct(v) => v.fmt(f),
-            Self::Enum(v) => v.fmt(f),
-            Self::Function(v) => v.fmt(f),
-            Self::SharedRef(v) => v.fmt(f),
-            Self::UniqueRef(v) => v.fmt(f),
-            Self::ConstPtr(v) => v.fmt(f),
-            Self::MutPtr(v) => v.fmt(f),
-        }
-    }
-}
+pub use super::Type;
 
 macro_rules! generate_primitive {
     ($($t:ident,)*) => {

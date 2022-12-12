@@ -3,7 +3,7 @@ use std::fmt;
 /// A reflected [`[T; N]`][prim@array] value.
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct Array<'value, 'dwarf, P>
+pub struct Array<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -12,27 +12,37 @@ where
     provider: &'dwarf P,
 }
 
+impl<'dwarf, R> crate::schema::Array<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
+        provider: &'dwarf P,
+        value: crate::Bytes<'value>,
+    ) -> Result<Array<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        let len = self.len()?;
+        let elt_size = self.elt_type()?.size()?;
+        let bytes = len
+            .checked_mul(elt_size)
+            .ok_or(crate::error::Kind::arithmetic_overflow())?;
+        let bytes = usize::try_from(bytes)?;
+        let value = &value[..bytes];
+        Ok(Array {
+            value,
+            schema: self,
+            provider,
+        })
+    }
+}
+
 impl<'value, 'dwarf, P> Array<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::Array<'dwarf, P::Reader>,
-        provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        let len = schema.len()?;
-        let elt_size = schema.elt_type()?.size()?;
-        let bytes = len.checked_mul(elt_size).ok_or(crate::error::Kind::Other)?;
-        let bytes = usize::try_from(bytes)?;
-        let value = &value[..bytes];
-        Ok(Self {
-            value,
-            schema,
-            provider,
-        })
-    }
-
     /// An iterator over values in the array.
     pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, P>, crate::Error> {
         let elt_type = self.schema.elt_type()?;
@@ -67,21 +77,5 @@ where
             debug_list.entry(&crate::DebugDisplay(elt));
         }
         debug_list.finish()
-    }
-}
-
-/// Attempt to downcast a `Value<'value, 'dwarf, P>` into a `Array<'value, 'dwarf, P>`.
-impl<'value, 'dwarf, P> TryFrom<super::Value<'value, 'dwarf, P>> for Array<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Error = crate::error::Downcast;
-
-    fn try_from(value: super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
-        if let super::Value::Array(value) = value {
-            Ok(value)
-        } else {
-            Err(crate::error::Downcast::new::<Array<'value, 'dwarf, P>, Self>())
-        }
     }
 }

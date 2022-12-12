@@ -74,7 +74,9 @@ where
     pub fn bytes(&self) -> Result<u64, crate::Error> {
         let len = self.len()?;
         let elt_size = self.elt_type()?.size()?;
-        Ok(len.checked_mul(elt_size).ok_or(crate::error::Kind::Other)?)
+        Ok(len
+            .checked_mul(elt_size)
+            .ok_or(crate::error::Kind::arithmetic_overflow())?)
     }
 }
 

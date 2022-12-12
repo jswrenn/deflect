@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// A reflected [`Box`]'d `dyn Trait` object value.
-pub struct BoxedDyn<'value, 'dwarf, P>
+pub struct BoxedDyn<'value, 'dwarf, P = crate::DefaultProvider>
 where
     P: crate::DebugInfoProvider,
 {
@@ -10,22 +10,30 @@ where
     provider: &'dwarf P,
 }
 
+impl<'dwarf, R> crate::schema::BoxedDyn<'dwarf, R>
+where
+    R: crate::gimli::Reader<Offset = std::primitive::usize>,
+{
+    pub(crate) unsafe fn with_bytes<'value, P>(
+        self,
+        provider: &'dwarf P,
+        value: crate::Bytes<'value>,
+    ) -> Result<BoxedDyn<'value, 'dwarf, P>, crate::Error>
+    where
+        P: crate::DebugInfoProvider<Reader = R>,
+    {
+        Ok(BoxedDyn {
+            schema: self,
+            value,
+            provider,
+        })
+    }
+}
+
 impl<'value, 'dwarf, P> BoxedDyn<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
-    pub(crate) unsafe fn with_schema(
-        value: crate::Bytes<'value>,
-        schema: crate::schema::BoxedDyn<'dwarf, P::Reader>,
-        provider: &'dwarf P,
-    ) -> Result<Self, crate::Error> {
-        Ok(Self {
-            value,
-            schema,
-            provider,
-        })
-    }
-
     fn data(&self, size: usize) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.pointer().clone(), self.value, self.provider) };
@@ -93,51 +101,5 @@ where
         let value = self.deref().map_err(crate::fmt_err)?;
         f.write_str("box ")?;
         value.fmt(f)
-    }
-}
-
-impl<'value, 'dwarf, P> From<BoxedDyn<'value, 'dwarf, P>> for super::Value<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    fn from(value: BoxedDyn<'value, 'dwarf, P>) -> Self {
-        super::Value::BoxedDyn(value)
-    }
-}
-
-impl<'a, 'value, 'dwarf, P> TryFrom<&'a super::Value<'value, 'dwarf, P>>
-    for &'a BoxedDyn<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Error = crate::error::Downcast;
-
-    fn try_from(value: &'a super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
-        if let super::Value::BoxedDyn(value) = value {
-            Ok(value)
-        } else {
-            Err(crate::error::Downcast::new::<
-                &'a super::Value<'value, 'dwarf, P>,
-                Self,
-            >())
-        }
-    }
-}
-
-impl<'value, 'dwarf, P> TryFrom<super::Value<'value, 'dwarf, P>> for BoxedDyn<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Error = crate::error::Downcast;
-
-    fn try_from(value: super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
-        if let super::Value::BoxedDyn(value) = value {
-            Ok(value)
-        } else {
-            Err(crate::error::Downcast::new::<
-                super::Value<'value, 'dwarf, P>,
-                Self,
-            >())
-        }
     }
 }

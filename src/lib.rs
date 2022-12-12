@@ -576,7 +576,7 @@ fn get_size<R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<u64, crate::Error> {
     let size = get(entry, crate::gimli::DW_AT_byte_size)?;
     size.udata_value()
-        .ok_or(crate::error::invalid_attr(crate::gimli::DW_AT_byte_size))
+        .ok_or_else(|| crate::error::invalid_attr(crate::gimli::DW_AT_byte_size))
 }
 
 fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
@@ -584,7 +584,7 @@ fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<Option<u64>, crate::Error> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
     if let Some(size) = maybe_size {
-        Ok(Some(size.udata_value().ok_or(
+        Ok(Some(size.udata_value().ok_or_else(||
             crate::error::invalid_attr(crate::gimli::DW_AT_byte_size),
         )?))
     } else {
@@ -598,7 +598,7 @@ fn get_align<R: crate::gimli::Reader<Offset = usize>>(
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_alignment)?;
     if let Some(size) = maybe_size {
         size.udata_value()
-            .ok_or(crate::error::invalid_attr(crate::gimli::DW_AT_alignment))
+            .ok_or_else(|| crate::error::invalid_attr(crate::gimli::DW_AT_alignment))
             .map(Some)
     } else {
         Ok(None)
@@ -679,12 +679,12 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     unit: &'a crate::gimli::Unit<R>,
     file_index: u64,
 ) -> Result<String, crate::Error> {
-    let line_program = unit.line_program.as_ref().ok_or(error::file_indexing())?;
+    let line_program = unit.line_program.as_ref().ok_or_else(|| error::file_indexing())?;
 
     let file = line_program
         .header()
         .file(file_index)
-        .ok_or(error::file_indexing())?;
+        .ok_or_else(|| error::file_indexing())?;
 
     let filename = dwarf.attr_string(unit, file.path_name())?;
     let filename = filename.to_string_lossy()?;

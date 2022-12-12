@@ -43,7 +43,7 @@ where
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?;
-        let size = size.try_into().map_err(crate::error::Kind::TryFromInt)?;
+        let size = size.try_into()?;
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
         unsafe { super::Value::with_type(r#type, value, self.provider) }
@@ -59,7 +59,7 @@ where
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
         let r#type = self.schema.r#type()?;
         let size = r#type.size()?;
-        let size = size.try_into().map_err(crate::error::Kind::TryFromInt)?;
+        let size = size.try_into()?;
         let value = std::ptr::slice_from_raw_parts(value, size);
         let value = unsafe { &*value };
         Ok(value)

@@ -58,25 +58,25 @@ where
         let mut tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         let root = tree.root()?;
         let mut children = root.children();
-        let dw_tag_subrange_type = children.next()?.ok_or(crate::error::Kind::missing_child(
-            crate::gimli::DW_TAG_subrange_type,
-        ))?;
+        let dw_tag_subrange_type = children
+            .next()?
+            .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_subrange_type))?;
         let dw_tag_subrange_type = dw_tag_subrange_type.entry();
         crate::check_tag(dw_tag_subrange_type, crate::gimli::DW_TAG_subrange_type)?;
         let dw_at_count = crate::get(dw_tag_subrange_type, crate::gimli::DW_AT_count)?;
         let count = dw_at_count
             .udata_value()
-            .ok_or(crate::error::Kind::invalid_attr(crate::gimli::DW_AT_count))?;
+            .ok_or_else(|| crate::error::invalid_attr(crate::gimli::DW_AT_count))?;
         Ok(count)
     }
 
     /// The size of this array, in bytes.
     pub fn bytes(&self) -> Result<u64, crate::Error> {
         let len = self.len()?;
-        let elt_size = self.elt_type()?.size()?;
-        Ok(len
-            .checked_mul(elt_size)
-            .ok_or(crate::error::Kind::arithmetic_overflow())?)
+        let elt_type = self.elt_type()?;
+        let elt_size = elt_type.size()?;
+        len.checked_mul(elt_size)
+            .ok_or_else(|| crate::error::arithmetic_overflow())
     }
 }
 

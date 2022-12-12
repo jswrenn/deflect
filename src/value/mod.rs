@@ -1,7 +1,5 @@
 //! Reflections of Rust values.
 
-use std::fmt;
-
 mod array;
 mod r#box;
 mod boxed_dyn;
@@ -66,16 +64,13 @@ macro_rules! generate_primitive_conversions {
         where
             P: crate::DebugInfoProvider,
         {
-            type Error = crate::error::Downcast;
+            type Error = crate::DowncastErr;
 
             fn try_from(value: &'a Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
                 if let Value::$t(value) = value {
                     Ok(value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<
-                        &'a Value<'value, 'dwarf, P>,
-                        Self,
-                    >())
+                    Err(crate::DowncastErr::new::<&'a Value<'value, 'dwarf, P>, Self>())
                 }
             }
         }
@@ -84,16 +79,13 @@ macro_rules! generate_primitive_conversions {
         where
             P: crate::DebugInfoProvider,
         {
-            type Error = crate::error::Downcast;
+            type Error = crate::DowncastErr;
 
             fn try_from(value: &'a Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
                 if let Value::$t(value) = value {
                     Ok(*value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<
-                        &'a Value<'value, 'dwarf, P>,
-                        Self,
-                    >())
+                    Err(crate::DowncastErr::new::<&'a Value<'value, 'dwarf, P>, Self>())
                 }
             }
         }
@@ -102,13 +94,13 @@ macro_rules! generate_primitive_conversions {
         where
             P: crate::DebugInfoProvider,
         {
-            type Error = crate::error::Downcast;
+            type Error = crate::DowncastErr;
 
             fn try_from(value: Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
                 if let Value::$t(value) = value {
                     Ok(value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<Value<'value, 'dwarf, P>, Self>())
+                    Err(crate::DowncastErr::new::<Value<'value, 'dwarf, P>, Self>())
                 }
             }
         }
@@ -117,13 +109,13 @@ macro_rules! generate_primitive_conversions {
         where
             P: crate::DebugInfoProvider,
         {
-            type Error = crate::error::Downcast;
+            type Error = crate::DowncastErr;
 
             fn try_from(value: Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
                 if let Value::$t(value) = value {
                     Ok(*value.value())
                 } else {
-                    Err(crate::error::Downcast::new::<Value<'value, 'dwarf, P>, Self>())
+                    Err(crate::DowncastErr::new::<Value<'value, 'dwarf, P>, Self>())
                 }
             }
         }
@@ -169,7 +161,7 @@ macro_rules! generate_primitive {
                 let size = self.size() as std::primitive::usize;
                 let value = &bytes[..size];
                 let (&[], [value], &[]) = value.align_to() else {
-                    return Err(crate::error::Kind::Other.into());
+                    bail!("primitive is misaligned")
                 };
                 Ok($t {
                     value,
@@ -311,16 +303,13 @@ impl<'a, 'value, 'dwarf, P> TryFrom<&'a Value<'value, 'dwarf, P>> for &'value ()
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::DowncastErr;
 
     fn try_from(value: &'a Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
             Ok(value.value())
         } else {
-            Err(crate::error::Downcast::new::<
-                &'a Value<'value, 'dwarf, P>,
-                Self,
-            >())
+            Err(crate::DowncastErr::new::<&'a Value<'value, 'dwarf, P>, Self>())
         }
     }
 }
@@ -329,17 +318,14 @@ impl<'a, 'value, 'dwarf, P> TryFrom<&'a Value<'value, 'dwarf, P>> for ()
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::DowncastErr;
 
     fn try_from(value: &'a Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
             value.value();
             Ok(())
         } else {
-            Err(crate::error::Downcast::new::<
-                &'a Value<'value, 'dwarf, P>,
-                Self,
-            >())
+            Err(crate::DowncastErr::new::<&'a Value<'value, 'dwarf, P>, Self>())
         }
     }
 }
@@ -348,13 +334,13 @@ impl<'value, 'dwarf, P> TryFrom<Value<'value, 'dwarf, P>> for &'value ()
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::DowncastErr;
 
     fn try_from(value: Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
             Ok(value.value())
         } else {
-            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, P>, Self>())
+            Err(crate::DowncastErr::new::<Value<'value, 'dwarf, P>, Self>())
         }
     }
 }
@@ -363,14 +349,14 @@ impl<'value, 'dwarf, P> TryFrom<Value<'value, 'dwarf, P>> for ()
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::DowncastErr;
 
     fn try_from(value: Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let Value::unit(value) = value {
             value.value();
             Ok(())
         } else {
-            Err(crate::error::Downcast::new::<Value<'value, 'dwarf, P>, Self>())
+            Err(crate::DowncastErr::new::<Value<'value, 'dwarf, P>, Self>())
         }
     }
 }

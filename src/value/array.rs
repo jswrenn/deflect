@@ -28,7 +28,7 @@ where
         let elt_size = self.elt_type()?.size()?;
         let bytes = len
             .checked_mul(elt_size)
-            .ok_or(crate::error::Kind::arithmetic_overflow())?;
+            .ok_or_else(|| crate::error::arithmetic_overflow())?;
         let bytes = usize::try_from(bytes)?;
         let value = &value[..bytes];
         Ok(Array {

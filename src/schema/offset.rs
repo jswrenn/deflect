@@ -39,9 +39,9 @@ where
         } else if let Some(expression) = location.exprloc_value() {
             OffsetInner::Expression(expression)
         } else {
-            return Err(
-                crate::error::Kind::invalid_attr(crate::gimli::DW_AT_data_member_location).into(),
-            );
+            return Err(crate::error::invalid_attr(
+                crate::gimli::DW_AT_data_member_location,
+            ));
         };
         Ok(Self { unit, inner })
     }

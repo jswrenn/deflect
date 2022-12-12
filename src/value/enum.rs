@@ -67,7 +67,7 @@ where
 
         let schema = matched
             .or(default)
-            .ok_or(crate::error::Kind::enum_destructure())?;
+            .ok_or(crate::error::enum_destructure())?;
         Ok(unsafe { super::Variant::new(schema, self.value, self.provider) })
     }
 }

@@ -1,7 +1,5 @@
 //! Reflections of Rust types.
 
-use std::{fmt, primitive};
-
 mod array;
 mod r#box;
 mod boxed_dyn;
@@ -108,13 +106,11 @@ where
                     let mut fields = schema.fields()?;
                     let mut fields = fields.iter()?;
                     let pointer = fields.try_next()?;
-                    let pointer = pointer.ok_or(crate::error::Kind::missing_child(
-                        crate::gimli::DW_TAG_member,
-                    ))?;
+                    let pointer = pointer
+                        .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_member))?;
                     let metadata = fields.try_next()?;
-                    let metadata = metadata.ok_or(crate::error::Kind::missing_child(
-                        crate::gimli::DW_TAG_member,
-                    ))?;
+                    let metadata = metadata
+                        .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_member))?;
                     let metadata_name = metadata.name()?;
                     let metadata_name_slice = metadata_name.to_slice()?;
                     return match metadata_name_slice.as_ref() {
@@ -122,7 +118,7 @@ where
                             BoxedSlice::new(schema, pointer, metadata).map(Self::BoxedSlice)
                         }
                         b"vtable" => BoxedDyn::new(schema, pointer, metadata).map(Self::BoxedDyn),
-                        _ => Err(crate::error::Kind::name_mismatch(
+                        _ => Err(crate::error::name_mismatch(
                             "`length` or `vtable`",
                             metadata_name.to_string_lossy()?.into_owned(),
                         ))?,
@@ -151,15 +147,7 @@ where
                 Self::Enum(Enum::from_dw_tag_enumeration_type(dwarf, unit, entry)?)
             }
             crate::gimli::DW_TAG_pointer_type => {
-                let name = Name::from_die(dwarf, unit, &entry)
-                    .map(Some)
-                    .or_else(|err| {
-                        if let crate::error::Kind::MissingAttr(_) = err.kind {
-                            Ok(None)
-                        } else {
-                            Err(err)
-                        }
-                    })?;
+                let name = Name::from_die_opt(dwarf, unit, &entry)?;
                 let target = crate::get_type_ref(&entry)?;
                 if let Some(name) = name {
                     let name_as_slice = name.to_slice()?;
@@ -212,9 +200,7 @@ where
                             &crate::debug::DebugEntry::new(dwarf, unit, &entry,)
                         );
 
-                        return Err(
-                            crate::error::Kind::invalid_attr(crate::gimli::DW_AT_name).into()
-                        );
+                        return Err(crate::error::invalid_attr(crate::gimli::DW_AT_name));
                     }
                 } else {
                     // the `data_ptr` field of slices points to a pointer type that doesn't have a name.
@@ -232,7 +218,10 @@ where
                     "UNHANDLED DEBUG ENTRY:\n{:#?}",
                     &crate::debug::DebugEntry::new(dwarf, unit, &entry,)
                 );
-                return Err(crate::error::Kind::Other.into());
+                anyhow::bail!(
+                    "Unhandled debug info kind:\n{:#?}",
+                    crate::debug::DebugEntry::new(dwarf, unit, &entry,)
+                )
             }
         })
     }
@@ -319,15 +308,14 @@ macro_rules! generate_primitive {
                 let expected = std::any::type_name::<std::primitive::$t>();
                 if name.to_slice()? != expected.as_bytes() {
                     let actual = name.to_string_lossy()?.to_string();
-                    Err(crate::error::Kind::name_mismatch(expected, actual))?;
+                    Err(crate::error::name_mismatch(expected, actual))?;
                 }
 
                 let size: std::primitive::usize = crate::get_size(&entry)?
-                    .try_into()
-                    .map_err(crate::error::Kind::TryFromInt)?;
+                    .try_into()?;
                 let expected = core::mem::size_of::<std::primitive::$t>();
                 if size != expected {
-                    Err(crate::error::Kind::size_mismatch(expected, size))?;
+                    Err(crate::error::size_mismatch(expected, size))?;
                 }
 
                 Ok(Self {
@@ -427,15 +415,13 @@ where
         let expected = std::any::type_name::<()>();
         if name.to_slice()? != expected.as_bytes() {
             let actual = name.to_string_lossy()?.to_string();
-            Err(crate::error::Kind::name_mismatch(expected, actual))?;
+            Err(crate::error::name_mismatch(expected, actual))?;
         }
 
-        let size: std::primitive::usize = crate::get_size(&entry)?
-            .try_into()
-            .map_err(crate::error::Kind::TryFromInt)?;
+        let size: std::primitive::usize = crate::get_size(&entry)?.try_into()?;
         let expected = core::mem::size_of::<()>();
         if size != expected {
-            Err(crate::error::Kind::size_mismatch(expected, size))?;
+            Err(crate::error::size_mismatch(expected, size))?;
         }
 
         Ok(Self {

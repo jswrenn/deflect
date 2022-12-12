@@ -88,13 +88,13 @@ impl<'a, 'value, 'dwarf, P> TryFrom<&'a super::Value<'value, 'dwarf, P>>
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::error::DowncastErr;
 
     fn try_from(value: &'a super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let super::Value::str(value) = value {
             Ok(value.value())
         } else {
-            Err(crate::error::Downcast::new::<
+            Err(crate::error::DowncastErr::new::<
                 &'a super::Value<'value, 'dwarf, P>,
                 Self,
             >())
@@ -106,13 +106,13 @@ impl<'value, 'dwarf, P> TryFrom<super::Value<'value, 'dwarf, P>> for &'value std
 where
     P: crate::DebugInfoProvider,
 {
-    type Error = crate::error::Downcast;
+    type Error = crate::error::DowncastErr;
 
     fn try_from(value: super::Value<'value, 'dwarf, P>) -> Result<Self, Self::Error> {
         if let super::Value::str(value) = value {
             Ok(value.value())
         } else {
-            Err(crate::error::Downcast::new::<
+            Err(crate::error::DowncastErr::new::<
                 super::Value<'value, 'dwarf, P>,
                 Self,
             >())

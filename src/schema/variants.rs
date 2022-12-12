@@ -70,10 +70,11 @@ where
                         });
 
                     let mut entry = next.children();
-                    let entry = entry.next()?.ok_or(crate::error::Kind::missing_child(
-                        crate::gimli::DW_TAG_member,
-                    ))?;
-                    let entry = self.unit.entry(crate::get_type(entry.entry())?)?;
+                    let entry = entry.next()?;
+                    let entry = entry
+                        .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_member))?;
+                    let entry = crate::get_type(entry.entry())?;
+                    let entry = self.unit.entry(entry)?;
                     return Ok(Some(super::Variant::new(
                         self.dwarf,
                         self.unit,
@@ -98,12 +99,11 @@ where
                 }
                 crate::gimli::DW_TAG_member => continue,
                 other => {
-                    eprintln!(
+                    anyhow::bail!(
                         "Cannot find discriminant value in {:?} at {:x?}",
                         other.static_string(),
                         entry.offset()
                     );
-                    return Err(crate::error::Kind::Other.into());
                 }
             }
         }

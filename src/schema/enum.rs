@@ -63,16 +63,13 @@ where
             }
         }
 
-        let dw_tag_variant_part = variant_part.ok_or(crate::error::Kind::missing_child(
-            crate::gimli::DW_TAG_variant_part,
-        ))?;
+        let dw_tag_variant_part = variant_part
+            .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_variant_part))?;
 
         let dw_at_discr = crate::get_attr_ref(&dw_tag_variant_part, crate::gimli::DW_AT_discr)?
-            .ok_or(crate::error::Kind::missing_attr(crate::gimli::DW_AT_discr))?;
+            .ok_or_else(|| crate::error::missing_attr(crate::gimli::DW_AT_discr))?;
 
-        let dw_tag_member = unit
-            .entry(dw_at_discr)
-            .or(Err(crate::error::Kind::missing_entry(dw_at_discr)))?;
+        let dw_tag_member = unit.entry(dw_at_discr)?;
 
         let discr_type_offset = crate::get_type(&dw_tag_member)?;
 

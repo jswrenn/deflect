@@ -31,15 +31,18 @@ where
 
         if &*name != b"&str" {
             let actual = String::from_utf8_lossy(name.as_ref()).to_string();
-            Err(crate::error::Kind::name_mismatch("&str", actual))?;
+            Err(crate::error::name_mismatch("&str", actual))?;
         };
 
         let schema = super::Struct::from_dw_tag_structure_type(dwarf, unit, entry)?;
         let mut fields = schema.fields()?;
         let mut fields = fields.iter()?;
 
-        let data_ptr = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
-        let length = fields.try_next()?.ok_or(crate::error::Kind::Other)?;
+        let data_ptr = fields.try_next()?;
+        let data_ptr = data_ptr.ok_or_else(|| anyhow!("expected `data_ptr` field"))?;
+
+        let length = fields.try_next()?;
+        let length = length.ok_or_else(|| anyhow!("expected `length` field"))?;
 
         Ok(Self {
             schema,

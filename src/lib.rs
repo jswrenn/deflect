@@ -1,5 +1,4 @@
-//! **Debug anything.** Deflect brings reflection to Rust using [DWARF] debug
-//! info.
+//! Deflect brings reflection to Rust using [DWARF] debug info.
 //!
 //! Deflect can be used to recover the concrete types of trait objects, inspect
 //! the internal state of `async` generators, and pretty-print arbitrary data.
@@ -10,24 +9,25 @@
 //! Use the [`Reflect`] trait to debug or recursively destructure any value.
 //!
 //! ```
-//! struct Foo;
-//! trait Trait {}
-//! impl Trait for Foo {}
+//! # use std::any::Any;
+//! pub struct Foo {
+//!     a: u8
+//! }
 //!
 //! // initialize the debuginfo provider
 //! let context = deflect::default_provider()?;
 //!
 //! // create some type-erased data
-//! let data: Box<dyn Trait> = Box::new(Foo);
+//! let data: Box<dyn Any> = Box::new(Foo { a: 42 });
 //!
 //! // cast it to `&dyn Reflect`
-//! let erased: &dyn Reflect = &data;
+//! let erased: &dyn deflect::Reflect = &data;
 //!
 //! // reflect it!
 //! let value: deflect::Value = erased.reflect(&context)?;
 //!
 //! // pretty-print the reflected value
-//! assert_eq!(value.to_string(), "box Foo");
+//! assert_eq!(value.to_string(), "box Foo { a: 42 }");
 //!
 //! // downcast into a `BoxedDyn` value
 //! let value: deflect::value::BoxedDyn = value.try_into()?;
@@ -39,7 +39,7 @@
 //!
 //! // pretty-print the reflected value
 //! assert_eq!(value.to_string(), "Foo");
-//! #Ok(())
+//! # Ok::<_, Box<dyn std::error::Error>>(())
 //! ```
 
 #![allow(clippy::len_without_is_empty, clippy::needless_lifetimes)]
@@ -130,7 +130,7 @@ mod dbginfo_provider {
 
     fn map_of(dynamic_addr: usize) -> Result<Map, crate::Error> {
         let pid = std::process::id();
-        let mappings = procmaps::Mappings::from_pid(pid as _).unwrap();
+        let mappings = procmaps::Mappings::from_pid(pid as _)?;
 
         for map in mappings.iter() {
             if (map.base..=map.ceiling).contains(&dynamic_addr) {
@@ -224,6 +224,7 @@ pub trait Reflect {
 }
 
 impl<T: ?Sized> Reflect for T {
+    #[inline(never)]
     fn local_type_id(&self) -> usize {
         <Self as Reflect>::local_type_id as usize
     }
@@ -256,10 +257,13 @@ fn dw_unit_and_die_of_addr<'ctx, R>(
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    let Some(dw_die_offset) = ctx
+    let Some(frame) = ctx
         .find_frames(static_addr as u64)?
-        .next()?
-        .and_then(|f| f.dw_die_offset) else {
+        .next()? else {
+            return Err(error::missing_debug_info())
+        };
+
+    let Some(dw_die_offset) = frame.dw_die_offset else {
             return Err(error::missing_debug_info())
         };
 

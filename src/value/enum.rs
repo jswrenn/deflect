@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 /// A value of a sum type; e.g., a Rust-style enum.
 pub struct Enum<'value, 'dwarf, P = crate::DefaultProvider>
@@ -36,16 +36,22 @@ impl<'value, 'dwarf, P> Enum<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Enum<'dwarf, P::Reader> {
+        &self.schema
+    }
+
     /// The variant of this enum.
     pub fn variant(&self) -> Result<super::Variant<'value, 'dwarf, P>, crate::Error> {
         let mut default = None;
         let mut matched = None;
 
-        let discr_loc = self.discriminant_location().clone();
+        let schema = self.schema();
+        let discr_loc = schema.discriminant_location().clone();
         let enum_addr = self.value.as_ptr() as *const () as u64;
         let discr_addr = discr_loc.address(enum_addr)?;
 
-        let mut variants = self.variants()?;
+        let mut variants = schema.variants()?;
         let mut variants = variants.iter()?;
 
         while let Some(variant) = variants.try_next()? {
@@ -89,19 +95,8 @@ where
     P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.name().fmt(f)?;
+        self.schema().name().fmt(f)?;
         f.write_str("::")?;
         self.variant().map_err(crate::fmt_err)?.fmt(f)
-    }
-}
-
-impl<'value, 'dwarf, P> ops::Deref for Enum<'value, 'dwarf, P>
-where
-    P: 'dwarf + crate::DebugInfoProvider,
-{
-    type Target = crate::schema::Enum<'dwarf, P::Reader>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
     }
 }

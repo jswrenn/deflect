@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 /// A function value.
 pub struct Function<'value, 'dwarf, P = crate::DefaultProvider>
@@ -30,6 +30,16 @@ where
     }
 }
 
+impl<'value, 'dwarf, P> Function<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Function<'dwarf, P::Reader> {
+        &self.schema
+    }
+}
+
 impl<'value, 'dwarf, P> fmt::Debug for Function<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
@@ -48,13 +58,3 @@ where
     }
 }
 
-impl<'value, 'dwarf, P> ops::Deref for Function<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Target = crate::schema::Function<'dwarf, P::Reader>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
-    }
-}

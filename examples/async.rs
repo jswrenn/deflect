@@ -1,7 +1,4 @@
-#![allow(
-    dead_code,
-    clippy::disallowed_names,
-)]
+#![allow(dead_code, clippy::disallowed_names)]
 
 use deflect::Reflect;
 use std::error::Error;
@@ -147,7 +144,7 @@ async fn await3_level5() -> u8 {
 
     let x = foo.await;
     let y = x + bar.await;
-    
+
     y + baz.await
 }
 

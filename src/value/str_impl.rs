@@ -47,6 +47,11 @@ impl<'value, 'dwarf, P> str<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::str<'dwarf, P::Reader> {
+        &self.schema
+    }
+
     /// The Rust value corresponding to this reflected value.
     pub fn value(&self) -> &'value std::primitive::str {
         self.value

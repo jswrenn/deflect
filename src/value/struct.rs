@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 /// A reflected struct value.
 pub struct Struct<'value, 'dwarf, P = crate::DefaultProvider>
@@ -34,21 +34,33 @@ impl<'value, 'dwarf, P> Struct<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Struct<'dwarf, P::Reader> {
+        &self.schema
+    }
+
+    /// Get a field of this struct by name.
+    pub fn field<N>(&self, field_name: N) -> Result<Option<super::Field<'value, 'dwarf, P>>, crate::Error>
+    where
+        N: AsRef<[u8]>,
+    {
+        let target_name = field_name.as_ref();
+        let mut fields = self.fields()?;
+        let mut fields = fields.iter()?;
+        while let Some(field) = fields.try_next()? {
+            let field_name = field.schema().name()?;
+            let field_name = field_name.to_slice()?;
+            if target_name == field_name.as_ref() {
+                return Ok(Some(field));
+            }
+        }
+        Ok(None)
+    }
+
     /// The fields of this struct.
     pub fn fields(&self) -> Result<super::Fields<'value, 'dwarf, P>, crate::Error> {
         let fields = self.schema.fields()?;
         Ok(super::Fields::new(fields, self.value, self.provider))
-    }
-}
-
-impl<'value, 'dwarf, P> ops::Deref for Struct<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Target = crate::schema::Struct<'dwarf, P::Reader>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
     }
 }
 
@@ -69,13 +81,14 @@ where
     P: crate::DebugInfoProvider,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let type_name = self.name().map_err(crate::fmt_err)?;
+        let schema = self.schema();
+        let type_name = schema.name().map_err(crate::fmt_err)?;
         let type_name = type_name.to_string_lossy().map_err(crate::fmt_err)?;
         let mut debug_struct = f.debug_struct(&type_name);
         let mut fields = self.fields().map_err(crate::fmt_err)?;
         let mut fields = fields.iter().map_err(crate::fmt_err)?;
         while let Some(field) = fields.try_next().map_err(crate::fmt_err)? {
-            let field_name = field.name().map_err(crate::fmt_err)?;
+            let field_name = field.schema().name().map_err(crate::fmt_err)?;
             let field_name = field_name.to_string_lossy().map_err(crate::fmt_err)?;
             let field_value = field.value().map_err(crate::fmt_err)?;
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));

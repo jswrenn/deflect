@@ -34,6 +34,11 @@ impl<'value, 'dwarf, P> BoxedDyn<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::BoxedDyn<'dwarf, P::Reader> {
+        &self.schema
+    }
+    
     fn data(&self, size: usize) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.pointer().clone(), self.value, self.provider) };

@@ -41,10 +41,6 @@ pub(crate) fn file_indexing() -> crate::Error {
     anyhow!("could not map file index to a file name")
 }
 
-pub(crate) fn missing_debug_info() -> crate::Error {
-    anyhow!("could not find debug info")
-}
-
 pub(crate) fn arithmetic_overflow() -> crate::Error {
     anyhow!("arithmetic operation overflowed")
 }

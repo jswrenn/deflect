@@ -1,8 +1,6 @@
 use deflect::Reflect;
 use std::error::Error;
 
-
-
 fn main() -> Result<(), Box<dyn Error>> {
     #[allow(dead_code)]
     struct Foo {

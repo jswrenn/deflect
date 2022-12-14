@@ -34,6 +34,11 @@ impl<'value, 'dwarf, P> BoxedSlice<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::BoxedSlice<'dwarf, P::Reader> {
+        &self.schema
+    }
+
     /// The `data_ptr` field of this boxed slice.
     pub fn data_ptr(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =

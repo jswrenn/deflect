@@ -175,14 +175,14 @@ macro_rules! generate_primitive {
         where
             P: crate::DebugInfoProvider
         {
+            /// The schema of this value.
+            pub fn schema(&self) -> &crate::schema::$t<'dwarf, P::Reader> {
+                &self.schema
+            }
+
             /// The rust value of this reflected value.
             pub fn value(&self) -> &'value std::primitive::$t {
                 self.value
-            }
-
-            /// The schema of this reflected value.
-            pub fn schema(&self) -> &crate::schema::$t<'dwarf, P::Reader> {
-                &self.schema
             }
         }
 

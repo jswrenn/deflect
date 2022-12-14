@@ -10,37 +10,65 @@
 //!
 //! ```
 //! # use std::any::Any;
+//! # #[allow(dead_code)]
 //! pub struct Foo {
 //!     a: u8
 //! }
 //!
 //! // initialize the debuginfo provider
 //! let context = deflect::default_provider()?;
-//!
+//! 
 //! // create some type-erased data
-//! let data: Box<dyn Any> = Box::new(Foo { a: 42 });
+//! let erased: Box<dyn Any> = Box::new(Foo { a: 42 });
 //!
 //! // cast it to `&dyn Reflect`
-//! let erased: &dyn deflect::Reflect = &data;
+//! let reflectable: &dyn deflect::Reflect = &erased;
 //!
 //! // reflect it!
-//! let value: deflect::Value = erased.reflect(&context)?;
+//! let value: deflect::Value = reflectable.reflect(&context)?;
 //!
 //! // pretty-print the reflected value
 //! assert_eq!(value.to_string(), "box Foo { a: 42 }");
-//!
+//! 
 //! // downcast into a `BoxedDyn` value
 //! let value: deflect::value::BoxedDyn = value.try_into()?;
 //!
 //! // dereference the boxed value
 //! let value: deflect::Value = value.deref()?;
+//! 
 //! // downcast into a `Struct` value
 //! let value: deflect::value::Struct = value.try_into()?;
-//!
-//! // pretty-print the reflected value
-//! assert_eq!(value.to_string(), "Foo");
+//! 
+//! // get the field `a` by name
+//! let Some(field) = value.field("a")? else {
+//!     panic!("no field named `a`!")
+//! };
+//! 
+//! // get the value of the field
+//! let value = field.value()?;
+//! 
+//! // downcast into a `u8`
+//! let value: u8 = value.try_into()?;
+//! 
+//! // check that it's equal to `42`!
+//! assert_eq!(value, 42);
 //! # Ok::<_, Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! ## Limitations
+//! The current implementation of [`default_provider`] only works when DWARF
+//! debuginfo is stored in the program's binary. It will not work if DWARF
+//! debug info is split into other files. Pull requests are welcome.
+//!
+//! This crate is highly experimental. It is not suitable as a critical
+//! component of any system. The initial releases of this crate require
+//! significant polish. Pull requests are welcome. Its known soundness holes
+//! include ignorance of `UnsafeCell`; don't reflect into types containing
+//! `UnsafeCell`.
+//!
+//! Additionally, the particulars of how Rust encodes DWARF debug info my change
+//! over time. This crate will do its best to keep up with those changes. Again,
+//! pull requests are welcome.
 
 #![allow(clippy::len_without_is_empty, clippy::needless_lifetimes)]
 #![deny(missing_docs)]
@@ -142,7 +170,7 @@ mod dbginfo_provider {
                 }
             }
         }
-        bail!("Could not map the dynamic address 0x{dynamic_addr:x} to a static address in the binary.");
+        bail!("could not map the dynamic address 0x{dynamic_addr:x} to a static address in the binary");
     }
 
     pub fn context_of(dynamic_addr: usize) -> Result<(&'static Context, usize), crate::Error> {
@@ -191,7 +219,7 @@ mod dbginfo_provider {
 }
 
 pub(crate) mod private {
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, Debug)]
     pub struct DefaultProvider {}
 }
 
@@ -260,15 +288,15 @@ where
     let Some(frame) = ctx
         .find_frames(static_addr as u64)?
         .next()? else {
-            return Err(error::missing_debug_info())
+            bail!("could not find a DWARF frame for the address 0x{static_addr:x}")
         };
 
     let Some(dw_die_offset) = frame.dw_die_offset else {
-            return Err(error::missing_debug_info())
-        };
+        bail!("could not find the DWARF unit offset corresponding to the DIE of the function at static address 0x{static_addr:x}")
+    };
 
     let Some(unit) = ctx.find_dwarf_unit(static_addr as u64) else {
-        return Err(error::missing_debug_info())
+        bail!("could not find the DWARF unit containing debug info for the function at static address 0x{static_addr:x}")
     };
 
     let mut ty = None;

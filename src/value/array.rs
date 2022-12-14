@@ -43,6 +43,11 @@ impl<'value, 'dwarf, P> Array<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Array<'dwarf, P::Reader> {
+        &self.schema
+    }
+
     /// An iterator over values in the array.
     pub fn iter(&self) -> Result<super::Iter<'value, 'dwarf, P>, crate::Error> {
         let elt_type = self.schema.elt_type()?;

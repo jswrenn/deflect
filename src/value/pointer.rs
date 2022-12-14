@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 /// A reflected pointer or reference.
 pub struct Pointer<'value, 'dwarf, K, P = crate::DefaultProvider>
@@ -54,6 +54,11 @@ impl<'value, 'dwarf, K, P> Pointer<'value, 'dwarf, K, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Pointer<'dwarf, K, P::Reader> {
+        &self.schema
+    }
+
     /// The unreflected value behind this reference.
     pub(crate) fn deref_raw(&self) -> Result<crate::Bytes<'value>, crate::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
@@ -130,13 +135,3 @@ where
     }
 }
 
-impl<'value, 'dwarf, K, P> ops::Deref for Pointer<'value, 'dwarf, K, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Target = crate::schema::Pointer<'dwarf, K, P::Reader>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
-    }
-}

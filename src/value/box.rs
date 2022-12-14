@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use std::fmt;
 
 /// A reflected [`Box`] value.
 pub struct Box<'value, 'dwarf, P = crate::DefaultProvider>
@@ -34,6 +34,11 @@ impl<'value, 'dwarf, P> Box<'value, 'dwarf, P>
 where
     P: crate::DebugInfoProvider,
 {
+    /// The schema of this value.
+    pub fn schema(&self) -> &crate::schema::Box<'dwarf, P::Reader> {
+        &self.schema
+    }
+
     /// The reflected value behind this reference.
     pub fn deref(&self) -> Result<super::Value<'value, 'dwarf, P>, crate::Error> {
         let value = unsafe { *(self.value.as_ptr() as *const *const crate::Byte) };
@@ -82,16 +87,5 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("box ")?;
         self.deref().map_err(crate::fmt_err)?.fmt(f)
-    }
-}
-
-impl<'value, 'dwarf, P> ops::Deref for Box<'value, 'dwarf, P>
-where
-    P: crate::DebugInfoProvider,
-{
-    type Target = crate::schema::Box<'dwarf, P::Reader>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
     }
 }

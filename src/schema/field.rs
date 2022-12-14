@@ -16,7 +16,8 @@ impl<'dwarf, R> Field<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    /// Construct a new `Field` from a [`DW_TAG_member`][crate::gimli::DW_TAG_member].
+    /// Construct a new `Field` from a
+    /// [`DW_TAG_member`][crate::gimli::DW_TAG_member].
     pub(crate) fn from_dw_tag_member(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -28,19 +29,23 @@ where
         Ok(Self { dwarf, unit, entry })
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this `Field`'s debuginfo belongs to.
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Field`'s debuginfo
+    /// belongs to.
     #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
-    /// The DWARF [unit][crate::gimli::Unit] that this `Field`'s debuginfo belongs to.
+    /// The DWARF [unit][crate::gimli::Unit] that this `Field`'s debuginfo
+    /// belongs to.
     #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Field` abstracts over.
+    /// The [debugging information
+    /// entry][crate::gimli::DebuggingInformationEntry] this `Field` abstracts
+    /// over.
     #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry

@@ -1,4 +1,7 @@
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    clippy::disallowed_names,
+)]
 
 use deflect::Reflect;
 use std::error::Error;
@@ -144,8 +147,8 @@ async fn await3_level5() -> u8 {
 
     let x = foo.await;
     let y = x + bar.await;
-    let z = y + baz.await;
-    z
+    
+    y + baz.await
 }
 
 fn poll<F: Future>(_f: F) -> impl Reflect {

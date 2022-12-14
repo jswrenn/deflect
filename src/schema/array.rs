@@ -16,7 +16,8 @@ impl<'dwarf, R> Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    /// Construct a new `Function` from a [`DW_TAG_array_type`][crate::gimli::DW_TAG_array_type].
+    /// Construct a new `Function` from a
+    /// [`DW_TAG_array_type`][crate::gimli::DW_TAG_array_type].
     pub(crate) fn from_dw_tag_array_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -26,19 +27,23 @@ where
         Ok(Self { dwarf, unit, entry })
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this `Function`'s debuginfo belongs to.
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Function`'s
+    /// debuginfo belongs to.
     #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.dwarf
     }
 
-    /// The DWARF [unit][crate::gimli::Unit] that this `Function`'s debuginfo belongs to.
+    /// The DWARF [unit][crate::gimli::Unit] that this `Function`'s debuginfo
+    /// belongs to.
     #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.unit
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Function` abstracts over.
+    /// The [debugging information
+    /// entry][crate::gimli::DebuggingInformationEntry] this `Function`
+    /// abstracts over.
     #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         &self.entry
@@ -99,7 +104,9 @@ impl<'dwarf, R> fmt::Display for Array<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Ok(())
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        super::Name::from_die(self.dwarf(), self.unit(), self.entry())
+            .map_err(crate::fmt_err)?
+            .fmt(f)
     }
 }

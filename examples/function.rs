@@ -16,6 +16,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() {
     if let Err(err) = run() {
-        println!("{}", err);
+        println!("{err}");
     }
 }

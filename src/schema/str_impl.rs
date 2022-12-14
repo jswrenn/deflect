@@ -17,7 +17,8 @@ impl<'dwarf, R> str<'dwarf, R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    /// Construct a new `Struct` from a [`DW_TAG_structure_type`][crate::gimli::DW_TAG_structure_type].
+    /// Construct a new `Struct` from a
+    /// [`DW_TAG_structure_type`][crate::gimli::DW_TAG_structure_type].
     pub(crate) fn from_dw_tag_structure_type(
         dwarf: &'dwarf crate::gimli::Dwarf<R>,
         unit: &'dwarf crate::gimli::Unit<R, usize>,
@@ -51,19 +52,23 @@ where
         })
     }
 
-    /// The [DWARF](crate::gimli::Dwarf) sections that this `Struct`'s debuginfo belongs to.
+    /// The [DWARF](crate::gimli::Dwarf) sections that this `Struct`'s debuginfo
+    /// belongs to.
     #[allow(dead_code)]
     pub(crate) fn dwarf(&self) -> &'dwarf crate::gimli::Dwarf<R> {
         self.schema.dwarf()
     }
 
-    /// The DWARF [unit][crate::gimli::Unit] that this `Struct`'s debuginfo belongs to.
+    /// The DWARF [unit][crate::gimli::Unit] that this `Struct`'s debuginfo
+    /// belongs to.
     #[allow(dead_code)]
     pub(crate) fn unit(&self) -> &crate::gimli::Unit<R, usize> {
         self.schema.unit()
     }
 
-    /// The [debugging information entry][crate::gimli::DebuggingInformationEntry] this `Struct` abstracts over.
+    /// The [debugging information
+    /// entry][crate::gimli::DebuggingInformationEntry] this `Struct` abstracts
+    /// over.
     #[allow(dead_code)]
     pub(crate) fn entry(&self) -> &crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R> {
         self.schema.entry()

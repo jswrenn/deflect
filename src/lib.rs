@@ -1,7 +1,48 @@
-//! DWARF-based reflection.
+//! **Debug anything.** Deflect brings reflection to Rust using [DWARF] debug
+//! info.
 //!
+//! Deflect can be used to recover the concrete types of trait objects, inspect
+//! the internal state of `async` generators, and pretty-print arbitrary data.
+//!
+//! [DWARF]: https://en.wikipedia.org/wiki/DWARF
+//!
+//! ## Example
 //! Use the [`Reflect`] trait to debug or recursively destructure any value.
+//!
+//! ```
+//! struct Foo;
+//! trait Trait {}
+//! impl Trait for Foo {}
+//!
+//! // initialize the debuginfo provider
+//! let context = deflect::default_provider()?;
+//!
+//! // create some type-erased data
+//! let data: Box<dyn Trait> = Box::new(Foo);
+//!
+//! // cast it to `&dyn Reflect`
+//! let erased: &dyn Reflect = &data;
+//!
+//! // reflect it!
+//! let value: deflect::Value = erased.reflect(&context)?;
+//!
+//! // pretty-print the reflected value
+//! assert_eq!(value.to_string(), "box Foo");
+//!
+//! // downcast into a `BoxedDyn` value
+//! let value: deflect::value::BoxedDyn = value.try_into()?;
+//!
+//! // dereference the boxed value
+//! let value: deflect::Value = value.deref()?;
+//! // downcast into a `Struct` value
+//! let value: deflect::value::Struct = value.try_into()?;
+//!
+//! // pretty-print the reflected value
+//! assert_eq!(value.to_string(), "Foo");
+//! #Ok(())
+//! ```
 
+#![allow(clippy::len_without_is_empty, clippy::needless_lifetimes)]
 #![deny(missing_docs)]
 
 #[macro_use]
@@ -65,7 +106,12 @@ where
     }
 }
 
-/// A source of debug info that can be trusted to correspond to the current executable.
+/// A source of debug info that can be trusted to correspond to the current
+/// executable.
+///
+/// ## Safety
+/// Implementers of this trait must provide accurate debug info for this
+/// program.
 pub unsafe trait DebugInfoProvider: Clone {
     /// The type of the DWARF reader.
     type Reader: gimli::Reader<Offset = usize>;
@@ -172,7 +218,8 @@ pub fn default_provider() -> Result<DefaultProvider, crate::Error> {
 
 /// A reflectable type.
 pub trait Reflect {
-    /// Produces an ID that uniquely identifies the type within its compilation unit.
+    /// Produces an ID that uniquely identifies the type within its compilation
+    /// unit.
     fn local_type_id(&self) -> usize;
 }
 
@@ -584,9 +631,9 @@ fn get_size_opt<R: crate::gimli::Reader<Offset = usize>>(
 ) -> Result<Option<u64>, crate::Error> {
     let maybe_size = entry.attr_value(crate::gimli::DW_AT_byte_size)?;
     if let Some(size) = maybe_size {
-        Ok(Some(size.udata_value().ok_or_else(||
-            crate::error::invalid_attr(crate::gimli::DW_AT_byte_size),
-        )?))
+        Ok(Some(size.udata_value().ok_or_else(|| {
+            crate::error::invalid_attr(crate::gimli::DW_AT_byte_size)
+        })?))
     } else {
         Ok(None)
     }
@@ -679,12 +726,15 @@ fn fi_to_string<'a, R: crate::gimli::Reader<Offset = usize> + 'a>(
     unit: &'a crate::gimli::Unit<R>,
     file_index: u64,
 ) -> Result<String, crate::Error> {
-    let line_program = unit.line_program.as_ref().ok_or_else(|| error::file_indexing())?;
+    let line_program = unit
+        .line_program
+        .as_ref()
+        .ok_or_else(error::file_indexing)?;
 
     let file = line_program
         .header()
         .file(file_index)
-        .ok_or_else(|| error::file_indexing())?;
+        .ok_or_else(error::file_indexing)?;
 
     let filename = dwarf.attr_string(unit, file.path_name())?;
     let filename = filename.to_string_lossy()?;
@@ -710,6 +760,6 @@ where
 }
 
 fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
-    eprintln!("ERROR: {}", err);
+    eprintln!("ERROR: {err}");
     fmt::Error
 }

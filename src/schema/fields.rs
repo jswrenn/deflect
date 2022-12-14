@@ -71,7 +71,7 @@ impl<'dwarf, 'tree, R: crate::gimli::Reader<Offset = usize>> Iterator
     fn next(&mut self) -> Option<Self::Item> {
         match self.try_next() {
             Ok(next) => next,
-            Err(err) => panic!("could not read next field: {}", err),
+            Err(err) => panic!("could not read next field: {err}"),
         }
     }
 }

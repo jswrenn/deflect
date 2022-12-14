@@ -13,7 +13,8 @@ impl<R> Name<R>
 where
     R: crate::gimli::Reader<Offset = usize>,
 {
-    /// Constructs a `Name` from the [`DW_AT_name`][crate::gimli::DW_AT_name] attribute of the given `entry`.
+    /// Constructs a `Name` from the [`DW_AT_name`][crate::gimli::DW_AT_name]
+    /// attribute of the given `entry`.
     pub(crate) fn from_die(
         dwarf: &crate::gimli::Dwarf<R>,
         unit: &crate::gimli::Unit<R, usize>,
@@ -24,7 +25,8 @@ where
         Ok(Self { name })
     }
 
-    /// Constructs a `Name` from the [`DW_AT_name`][crate::gimli::DW_AT_name] attribute of the given `entry`.
+    /// Constructs a `Name` from the [`DW_AT_name`][crate::gimli::DW_AT_name]
+    /// attribute of the given `entry`.
     pub(crate) fn from_die_opt(
         dwarf: &crate::gimli::Dwarf<R>,
         unit: &crate::gimli::Unit<R, usize>,
@@ -41,23 +43,27 @@ where
 
     /// Convert all remaining data to a clone-on-write string.
     ///
-    /// The string will be borrowed where possible, but some readers may always return an owned string.
+    /// The string will be borrowed where possible, but some readers may always
+    /// return an owned string.
     ///
     /// Returns an error if the data contains invalid characters.
     pub fn to_string(&self) -> Result<Cow<'_, str>, crate::Error> {
         Ok(self.name.to_string()?)
     }
 
-    /// Convert all remaining data to a clone-on-write string, including invalid characters.
+    /// Convert all remaining data to a clone-on-write string, including invalid
+    /// characters.
     ///
-    /// The string will be borrowed where possible, but some readers may always return an owned string.
+    /// The string will be borrowed where possible, but some readers may always
+    /// return an owned string.
     pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, crate::Error> {
         Ok(self.name.to_string_lossy()?)
     }
 
     /// Return all remaining data as a clone-on-write slice of bytes.
     ///
-    /// The slice will be borrowed where possible, but some readers may always return an owned vector.
+    /// The slice will be borrowed where possible, but some readers may always
+    /// return an owned vector.
     pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::Error> {
         Ok(self.name.to_slice()?)
     }

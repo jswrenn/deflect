@@ -125,6 +125,43 @@ fn str(data: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn boxed_dyn() -> Result<(), Box<dyn std::error::Error>> {
+    struct Foo;
+
+    trait Trait {}
+
+    impl Trait for Foo {}
+
+    let context = deflect::default_provider()?;
+
+    let data: Box<dyn Trait> = Box::new(Foo);
+    let erased: &dyn deflect::Reflect = &data;
+
+    let value: deflect::Value = erased.reflect(&context)?;
+    let value: deflect::value::BoxedDyn = value.try_into()?;
+
+    assert_eq!(value.to_string(), "box Foo");
+
+    let value: deflect::Value = value.deref()?;
+    let value: deflect::value::Struct = value.try_into()?;
+
+    assert_eq!(value.to_string(), "Foo");
+
+    Ok(())
+}
+
+#[test]
+fn boxed_slice() -> Result<(), Box<dyn std::error::Error>> {
+    let data = vec![1, 2, 3].into_boxed_slice();
+    let erased: &dyn deflect::Reflect = &data;
+    let context = deflect::default_provider()?;
+    let value: deflect::Value = erased.reflect(&context)?;
+    let value: deflect::value::BoxedSlice = value.try_into()?;
+    assert_eq!(value.to_string(), "box [1, 2, 3][..]");
+    Ok(())
+}
+
 mod primitive {
 
     use std::ptr;

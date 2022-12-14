@@ -92,10 +92,6 @@ where
                     return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
                         dwarf, unit, entry,
                     )?));
-                } else if name_slice.starts_with(b"&[") {
-                    return Ok(Self::Slice(Slice::from_dw_tag_structure_type(
-                        dwarf, unit, entry,
-                    )?));
                 } else if &*name_slice == b"&str" {
                     return Ok(Self::str(str::from_dw_tag_structure_type(
                         dwarf, unit, entry,
@@ -175,16 +171,7 @@ where
                             Some(name),
                             target,
                         ))
-                    } else if name_as_slice.starts_with(b"&") {
-                        Self::SharedRef(Pointer::new(
-                            dwarf,
-                            unit,
-                            entry.offset(),
-                            Some(name),
-                            target,
-                        ))
-                    } else if name_as_slice.starts_with(b"fn") {
-                        // TODO: This should probably be its own type.
+                    } else if name_as_slice.starts_with(b"&") || name_as_slice.starts_with(b"fn") {
                         Self::SharedRef(Pointer::new(
                             dwarf,
                             unit,
@@ -203,7 +190,8 @@ where
                         return Err(crate::error::invalid_attr(crate::gimli::DW_AT_name));
                     }
                 } else {
-                    // the `data_ptr` field of slices points to a pointer type that doesn't have a name.
+                    // the `data_ptr` field of slices points to a pointer type that doesn't have a
+                    // name.
                     Self::MutPtr(Pointer::new(dwarf, unit, entry.offset(), None, target))
                 }
             }

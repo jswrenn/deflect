@@ -28,7 +28,8 @@ where
         }
     }
 
-    /// Construct a new `Offset` from a given `entry`'s `DW_AT_data_member_location` attribute.
+    /// Construct a new `Offset` from a given `entry`'s
+    /// `DW_AT_data_member_location` attribute.
     pub(crate) fn from_die<'entry>(
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: &'entry crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,

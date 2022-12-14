@@ -1,0 +1,189 @@
+# This file incorporates work [0] covered by the following copyright and
+# permission notice:
+#
+#   Copyright 2019 The Fuchsia Authors.
+#   
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions are
+#   met:
+#   
+#      * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+#      * Redistributions in binary form must reproduce the above
+#   copyright notice, this list of conditions and the following disclaimer
+#   in the documentation and/or other materials provided with the
+#   distribution.
+#   
+#   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+#   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+#   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+#   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# [0] https://github.com/google/zerocopy/blob/main/.github/workflows/ci.yml
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - staging
+      - trying
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  # `CRATE_NIGHTLY_XXX` are flags that we add to `XXX` only on the nightly
+  # toolchain.
+  CRATE_NIGHTLY_RUSTFLAGS: -Zrandomize-layout
+
+jobs:
+  build_test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        toolchain: [ "stable", "nightly" ]
+        target: [ "i686-unknown-linux-gnu", "x86_64-unknown-linux-gnu" ]
+
+    name: Build & Test (toolchain:${{ matrix.toolchain }}, target:${{ matrix.target }})
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # We use toolchain descriptors ("msrv", "stable", and "nightly") in the
+    # matrix. This step converts the current descriptor to a particular
+    # toolchain version by looking up the corresponding key in `Cargo.toml`. It
+    # sets the `CRATE_TOOLCHAIN` environment variable for future steps to use.
+    #
+    # Note that all metadata is stored in the `Cargo.toml` at
+    # the repository root.
+    - name: Set toolchain version
+      run: |
+        set -e
+        # Usage: msrv <crate-name>
+        function msrv {
+          cargo metadata --format-version 1 | jq -r ".packages[] | select(.name == \"$1\").rust_version"
+        }
+        case ${{ matrix.toolchain }} in
+          msrv)
+            CRATE_TOOLCHAIN="$(msrv deflect)"
+            ;;
+          stable)
+            CRATE_TOOLCHAIN="stable"
+            ;;
+          nightly)
+            CRATE_TOOLCHAIN="nightly"
+            ;;
+          *)
+            echo 'Unrecognized toolchain: ${{ matrix.toolchain }}' | tee -a $GITHUB_STEP_SUMMARY >&2
+            exit 1
+            ;;
+        esac
+        echo "Found that the '${{ matrix.toolchain }}' toolchain is $CRATE_TOOLCHAIN" | tee -a $GITHUB_STEP_SUMMARY
+        echo "CRATE_TOOLCHAIN=$CRATE_TOOLCHAIN" >> $GITHUB_ENV
+    - name: Configure environment variables
+      run: |
+        set -e
+        if [[ '${{ matrix.toolchain }}' == 'nightly' ]]; then
+          RUSTFLAGS="$RUSTFLAGS $CRATE_NIGHTLY_RUSTFLAGS"
+          MIRIFLAGS="$MIRIFLAGS $CRATE_NIGHTLY_MIRIFLAGS"
+          echo "Using nightly toolchain; setting RUSTFLAGS='$RUSTFLAGS' and MIRIFLAGS='$MIRIFLAGS'" | tee -a $GITHUB_STEP_SUMMARY
+          echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
+          echo "MIRIFLAGS=$MIRIFLAGS" >> $GITHUB_ENV
+        else
+          echo "Using non-nightly toolchain; not modifying RUSTFLAGS='$RUSTFLAGS' or MIRIFLAGS='$MIRIFLAGS'" | tee -a $GITHUB_STEP_SUMMARY
+        fi
+    - name: Install Rust with toolchain ${{ env.CRATE_TOOLCHAIN }} and target ${{ matrix.target }}
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: ${{ env.CRATE_TOOLCHAIN }}
+          target: ${{ matrix.target }}
+          components: clippy
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.0.0
+
+    # When building tests for the i686 target, we need certain libraries which
+    # are not installed by default; `gcc-multilib` includes these libraries.
+    - name: Install gcc-multilib
+      run: sudo apt-get install gcc-multilib
+      if: ${{ contains(matrix.target, 'i686') }}
+
+    - name: Check
+      run: cargo +${{ env.CRATE_TOOLCHAIN }} check --target ${{ matrix.target }} --all-targets --verbose
+
+    - name: Test
+      run: cargo +${{ env.CRATE_TOOLCHAIN }} test --target ${{ matrix.target }} --verbose
+      # Only run tests when targetting x86 (32- or 64-bit) - we're executing on
+      # x86_64, so we can't run tests for any non-x86 target.
+      if: ${{ contains(matrix.target, 'x86_64') || contains(matrix.target, 'i686') }}
+
+  check_fmt:
+    runs-on: ubuntu-latest
+    name: cargo fmt
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust (nightly)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt
+      - name: "`cargo fmt --check`"
+        run: |
+          set -e
+          cargo fmt --check
+
+  check_clippy:
+    runs-on: ubuntu-latest
+    name: cargo clippy
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust (nightly)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: clippy
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+      - name: "`cargo clippy`"
+        run: |
+          set -e
+          cargo clippy --all-targets
+
+  check_readme:
+    runs-on: ubuntu-latest
+    name: Check README is correctly generated.
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.0.0
+      - uses: extractions/setup-just@v1
+      - name: Check MSRVs match
+        run: |
+          set -e
+          cargo install cargo-readme --version 3.2.0
+          diff <(just generate-readme) README.md
+          exit $?
+
+  ci-success:
+    name: ci
+    if: ${{ success() }}
+    needs:
+      - build_test
+      - check_fmt
+      - check_clippy
+      - check_readme
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI succeeded
+        run: exit 0

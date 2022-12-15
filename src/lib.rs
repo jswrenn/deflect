@@ -250,15 +250,13 @@ pub fn default_provider() -> Result<DefaultProvider, crate::Error> {
 pub trait Reflect {
     /// Produces an ID that uniquely identifies the type within its compilation
     /// unit.
-    fn local_type_id(&self) -> usize;
-}
-
-impl<T: ?Sized> Reflect for T {
     #[inline(never)]
     fn local_type_id(&self) -> usize {
         <Self as Reflect>::local_type_id as usize
     }
 }
+
+impl<T: ?Sized> Reflect for T {}
 
 impl dyn Reflect + '_ {
     /// Produces a reflected `Value` of `&self`.

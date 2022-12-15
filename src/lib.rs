@@ -54,6 +54,7 @@
 //! assert_eq!(value, 42);
 //! # Ok::<_, Box<dyn std::error::Error>>(())
 //! ```
+//! See the `examples` directory of this crate's source for additional examples.
 //!
 //! ## Limitations
 //! The current implementation of [`default_provider`] only works when DWARF

@@ -10,7 +10,7 @@ readme = "README.md"
 rust-version = "1.66.0"
 
 [package.metadata.release]
-no-dev-version = true
+dev-version = false
 pre-release-commit-message = "chore: Release version {{version}}"
 allow-branch = ["main"]
 pre-release-replacements = [

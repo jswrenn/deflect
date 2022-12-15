@@ -1,3 +1,4 @@
+//! **[EXPERIMENTAL]**
 //! Deflect brings reflection to Rust using [DWARF] debug info.
 //!
 //! Deflect can be used to recover the concrete types of trait objects, inspect
@@ -64,7 +65,7 @@
 //! This crate is highly experimental. It is not suitable as a critical
 //! component of any system. The initial releases of this crate require
 //! significant polish. Pull requests are welcome. Its known soundness holes
-//! include ignorance of `UnsafeCell`; don't reflect into types containing
+//! include ignorance of `UnsafeCell`. Don't reflect into types containing
 //! `UnsafeCell`.
 //!
 //! Additionally, the particulars of how Rust encodes DWARF debug info my change

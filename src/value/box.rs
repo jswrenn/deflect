@@ -89,3 +89,16 @@ where
         self.deref().map_err(crate::fmt_err)?.fmt(f)
     }
 }
+
+impl<'value, 'dwarf, P> serde::Serialize for Box<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = self.deref().map_err(crate::ser_err)?;
+        value.serialize(serializer)
+    }
+}

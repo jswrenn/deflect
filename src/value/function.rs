@@ -58,3 +58,14 @@ where
     }
 }
 
+impl<'value, 'dwarf, P> serde::Serialize for Function<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Err(crate::ser_err("cannot serialize function"))
+    }
+}

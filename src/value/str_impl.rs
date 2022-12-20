@@ -79,6 +79,18 @@ where
     }
 }
 
+impl<'value, 'dwarf, P> serde::Serialize for str<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.value().serialize(serializer)
+    }
+}
+
 impl<'value, 'dwarf, P> From<str<'value, 'dwarf, P>> for &'value std::primitive::str
 where
     P: crate::DebugInfoProvider,

@@ -101,3 +101,22 @@ where
         debug_list.finish()
     }
 }
+
+impl<'value, 'dwarf, P> serde::Serialize for Slice<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let len = Some(self.length().map_err(crate::ser_err)?);
+        let mut ser_seq = serializer.serialize_seq(len).map_err(crate::ser_err)?;
+        for maybe_elt in self.iter().map_err(crate::ser_err)? {
+            let elt = maybe_elt.map_err(crate::ser_err)?;
+            ser_seq.serialize_element(&elt)?;
+        }
+        ser_seq.end()
+    }
+}

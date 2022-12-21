@@ -1,5 +1,19 @@
 use std::fmt;
+
 struct DisplayDebug<T>(T);
+
+#[track_caller]
+fn assert_ser_eq<T, U>(lhs: T, rhs: U) -> Result<(), serde_json::error::Error>
+where
+    T: serde::Serialize,
+    U: serde::Serialize,
+{
+    let lhs = serde_json::to_value(lhs)?;
+    let rhs = serde_json::to_value(rhs)?;
+
+    assert_eq!(lhs, rhs);
+    Ok(())
+}
 
 impl<T> fmt::Display for DisplayDebug<T>
 where
@@ -18,6 +32,8 @@ fn phantom_data() -> Result<(), Box<dyn std::error::Error>> {
     let value = erased.reflect(&context)?;
     let value: deflect::value::Struct<_> = value.try_into()?;
     assert_eq!(value.to_string(), "PhantomData<usize>");
+
+
     Ok(())
 }
 
@@ -43,6 +59,7 @@ fn tuple_struct() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn braced_struct() -> Result<(), Box<dyn std::error::Error>> {
+    #[derive(serde_derive::Serialize)]
     struct BracedStruct {
         #[allow(dead_code)]
         foo: u8,
@@ -51,6 +68,7 @@ fn braced_struct() -> Result<(), Box<dyn std::error::Error>> {
     let context = deflect::default_provider()?;
     let value = erased.reflect(&context)?;
     assert_eq!(value.to_string(), "BracedStruct { foo: 42 }");
+    assert_ser_eq(erased, &BracedStruct { foo: 42 })?;
     Ok(())
 }
 
@@ -87,6 +105,7 @@ mod slice {
             .try_collect()?;
 
         assert_eq!(data, collected);
+        crate::assert_ser_eq(erased, slice)?;
 
         Ok(())
     }
@@ -109,6 +128,7 @@ mod slice {
             .try_collect()?;
 
         assert_eq!(data, collected);
+        crate::assert_ser_eq(erased, slice)?;
 
         Ok(())
     }
@@ -122,6 +142,7 @@ fn str(data: String) -> Result<(), Box<dyn std::error::Error>> {
     let value = erased.reflect(&context)?;
     let value: &str = value.try_into()?;
     assert_eq!(slice, value);
+    crate::assert_ser_eq(erased, slice)?;
     Ok(())
 }
 
@@ -159,6 +180,7 @@ fn boxed_slice() -> Result<(), Box<dyn std::error::Error>> {
     let value: deflect::Value = erased.reflect(&context)?;
     let value: deflect::value::BoxedSlice = value.try_into()?;
     assert_eq!(value.to_string(), "box [1, 2, 3][..]");
+    crate::assert_ser_eq(erased, &data)?;
     Ok(())
 }
 
@@ -189,6 +211,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -202,6 +225,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -215,6 +239,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -228,6 +253,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -241,6 +267,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -254,6 +281,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -267,6 +295,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -280,6 +309,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -306,6 +336,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -319,6 +350,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -332,6 +364,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -345,6 +378,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -358,6 +392,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 
@@ -384,6 +419,7 @@ mod primitive {
             &n,
             <&_>::try_from(value).expect("failed to downcast")
         ));
+        crate::assert_ser_eq(erased, &n)?;
         Ok(())
     }
 }

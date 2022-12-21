@@ -326,6 +326,18 @@ impl fmt::Debug for dyn Reflect {
     }
 }
 
+impl serde::Serialize for dyn Reflect + '_
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let context = default_provider().map_err(crate::ser_err)?;
+        let value = self.reflect(&context).map_err(crate::ser_err)?;
+        value.serialize(serializer)
+    }
+}
+
 macro_rules! generate_type_and_value {
     ($($(#[$attr:meta])* $t:ident,)*) => {
         /// A reflected type.

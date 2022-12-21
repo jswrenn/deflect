@@ -40,7 +40,10 @@ where
     }
 
     /// Get a field of this struct by name.
-    pub fn field<N>(&self, field_name: N) -> Result<Option<super::Field<'value, 'dwarf, P>>, crate::Error>
+    pub fn field<N>(
+        &self,
+        field_name: N,
+    ) -> Result<Option<super::Field<'value, 'dwarf, P>>, crate::Error>
     where
         N: AsRef<[u8]>,
     {
@@ -94,5 +97,41 @@ where
             debug_struct.field(&field_name, &crate::DebugDisplay(field_value));
         }
         debug_struct.finish()
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for Struct<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let schema = self.schema();
+        let offset = schema.entry().offset();
+        let type_name = schema.name().map_err(crate::ser_err)?;
+        let type_name = type_name
+            .to_static_str(offset)
+            .map_err(crate::ser_err)?
+            .clone();
+        let mut fields = self.fields().map_err(crate::ser_err)?;
+        let mut fields_iter = fields.iter().map_err(crate::ser_err)?;
+        let mut fields = vec![];
+        while let Some(f) = fields_iter.try_next().map_err(crate::ser_err)? {
+            fields.push(f);
+        }
+        let mut s = serializer.serialize_struct(&type_name, fields.len())?;
+        fields.into_iter().try_for_each(|field| {
+            let schema = field.schema();
+            let offset = schema.entry().offset();
+            let field_name = schema.name().map_err(crate::ser_err)?;
+            let field_name = field_name.to_static_str(offset).map_err(crate::ser_err)?;
+            let field_value = field.value().map_err(crate::ser_err)?;
+            s.serialize_field(&field_name, &field_value)
+        })?;
+        s.end()
     }
 }

@@ -135,3 +135,52 @@ where
     }
 }
 
+impl<'value, 'dwarf, P> serde::Serialize for Pointer<'value, 'dwarf, crate::schema::Shared, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = self.deref().map_err(crate::ser_err)?;
+        value.serialize(serializer)
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for Pointer<'value, 'dwarf, crate::schema::Unique, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = self.deref().map_err(crate::ser_err)?;
+        value.serialize(serializer)
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for Pointer<'value, 'dwarf, crate::schema::Const, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Err(crate::ser_err("cannot serialize *const pointer"))
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for Pointer<'value, 'dwarf, crate::schema::Mut, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Err(crate::ser_err("cannot serialize *mut pointer"))
+    }
+}

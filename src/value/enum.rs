@@ -100,3 +100,58 @@ where
         self.variant().map_err(crate::fmt_err)?.fmt(f)
     }
 }
+
+impl<'value, 'dwarf, P> serde::Serialize for Enum<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStructVariant;
+
+        let schema = self.schema();
+        let offset = schema.entry().offset();
+        let type_name = schema.name();
+        let type_name = type_name
+            .to_static_str(offset)
+            .map_err(crate::ser_err)?
+            .clone();
+
+        let variant = self.variant().map_err(crate::ser_err)?;
+        let variant_schema = variant.schema();
+        let offset = variant_schema.entry().offset();
+        let variant_name = variant_schema.name().map_err(crate::ser_err)?;
+        let variant_name = variant_name
+            .to_static_str(offset)
+            .map_err(crate::ser_err)?
+            .clone();
+        let variant_index = variant_schema.index();
+
+        let mut fields = variant.fields().map_err(crate::ser_err)?;
+        let mut fields_iter = fields.iter().map_err(crate::ser_err)?;
+        let mut fields = vec![];
+        while let Some(f) = fields_iter.try_next().map_err(crate::ser_err)? {
+            fields.push(f);
+        }
+
+        let mut s = serializer.serialize_struct_variant(
+            &type_name,
+            variant_index.try_into().map_err(crate::ser_err)?,
+            &variant_name,
+            fields.len(),
+        )?;
+
+        fields.into_iter().try_for_each(|field| {
+            let schema = field.schema();
+            let offset = schema.entry().offset();
+            let field_name = schema.name().map_err(crate::ser_err)?;
+            let field_name = field_name.to_static_str(offset).map_err(crate::ser_err)?;
+            let field_value = field.value().map_err(crate::ser_err)?;
+            s.serialize_field(&field_name, &field_value)
+        })?;
+
+        s.end()
+    }
+}

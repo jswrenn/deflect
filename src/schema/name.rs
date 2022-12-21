@@ -67,6 +67,26 @@ where
     pub fn to_slice(&self) -> Result<Cow<'_, [u8]>, crate::Error> {
         Ok(self.name.to_slice()?)
     }
+
+    pub(crate) fn to_static_str(
+        &self,
+        key: crate::gimli::UnitOffset,
+    ) -> Result<&'static str, crate::Error> {
+        use dashmap::DashMap;
+        use once_cell::sync::Lazy;
+
+        static NAME_CACHE: Lazy<DashMap<crate::gimli::UnitOffset, &'static str>> =
+            Lazy::new(DashMap::new);
+
+        let name = NAME_CACHE.entry(key).or_try_insert_with(|| {
+            let name = self.to_string_lossy()?;
+            let name = name.to_string();
+            let name = Box::leak(name.into_boxed_str());
+            Ok::<_, crate::Error>(name)
+        })?;
+
+        Ok(*name)
+    }
 }
 
 impl<R> fmt::Debug for Name<R>

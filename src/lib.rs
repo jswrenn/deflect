@@ -18,7 +18,7 @@
 //!
 //! // initialize the debuginfo provider
 //! let context = deflect::default_provider()?;
-//! 
+//!
 //! // create some type-erased data
 //! let erased: Box<dyn Any> = Box::new(Foo { a: 42 });
 //!
@@ -30,27 +30,27 @@
 //!
 //! // pretty-print the reflected value
 //! assert_eq!(value.to_string(), "box Foo { a: 42 }");
-//! 
+//!
 //! // downcast into a `BoxedDyn` value
 //! let value: deflect::value::BoxedDyn = value.try_into()?;
 //!
 //! // dereference the boxed value
 //! let value: deflect::Value = value.deref()?;
-//! 
+//!
 //! // downcast into a `Struct` value
 //! let value: deflect::value::Struct = value.try_into()?;
-//! 
+//!
 //! // get the field `a` by name
 //! let Some(field) = value.field("a")? else {
 //!     panic!("no field named `a`!")
 //! };
-//! 
+//!
 //! // get the value of the field
 //! let value = field.value()?;
-//! 
+//!
 //! // downcast into a `u8`
 //! let value: u8 = value.try_into()?;
-//! 
+//!
 //! // check that it's equal to `42`!
 //! assert_eq!(value, 42);
 //! # Ok::<_, Box<dyn std::error::Error>>(())
@@ -256,6 +256,7 @@ pub trait Reflect {
     }
 }
 
+// Implement `Reflect` for ALL types.
 impl<T: ?Sized> Reflect for T {}
 
 impl dyn Reflect + '_ {
@@ -322,6 +323,18 @@ impl fmt::Debug for dyn Reflect {
         let context = default_provider().map_err(crate::fmt_err)?;
         let value = self.reflect(&context).map_err(crate::fmt_err)?;
         fmt::Display::fmt(&value, f)
+    }
+}
+
+impl serde::Serialize for dyn Reflect + '_
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let context = default_provider().map_err(crate::ser_err)?;
+        let value = self.reflect(&context).map_err(crate::ser_err)?;
+        value.serialize(serializer)
     }
 }
 
@@ -456,6 +469,20 @@ macro_rules! generate_type_and_value {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 match self {
                     $(Self::$t(v) => v.fmt(f),)*
+                }
+            }
+        }
+
+        impl<'value, 'dwarf, P> serde::Serialize for Value<'value, 'dwarf, P>
+        where
+            P: crate::DebugInfoProvider,
+        {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                match self {
+                    $(Self::$t(v) => v.serialize(serializer),)*
                 }
             }
         }
@@ -794,4 +821,11 @@ where
 fn fmt_err<E: fmt::Display>(err: E) -> fmt::Error {
     eprintln!("ERROR: {err}");
     fmt::Error
+}
+
+fn ser_err<E>(e: impl ToString) -> E
+where
+    E: serde::ser::Error,
+{
+    E::custom(e.to_string())
 }

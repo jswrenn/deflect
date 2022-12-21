@@ -11,6 +11,7 @@ where
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
     discriminant_val: Option<super::Data>,
+    index: usize,
 }
 
 impl<'dwarf, R> Variant<'dwarf, R>
@@ -22,12 +23,14 @@ where
         unit: &'dwarf crate::gimli::Unit<R, usize>,
         entry: crate::gimli::DebuggingInformationEntry<'dwarf, 'dwarf, R>,
         discriminant_val: Option<super::Data>,
+        index: usize,
     ) -> Self {
         Self {
             dwarf,
             unit,
             entry,
             discriminant_val,
+            index,
         }
     }
 
@@ -82,6 +85,11 @@ where
     pub fn fields(&self) -> Result<super::Fields<'dwarf, R>, crate::Error> {
         let tree = self.unit.entries_tree(Some(self.entry.offset()))?;
         Ok(super::Fields::from_tree(self.dwarf, self.unit, tree))
+    }
+
+    /// The index of the variant.
+    pub fn index(&self) -> usize {
+        self.index
     }
 }
 

@@ -207,6 +207,18 @@ macro_rules! generate_primitive {
             }
         }
 
+        impl<'value, 'dwarf, P> serde::Serialize for $t<'value, 'dwarf, P>
+        where
+            P: crate::DebugInfoProvider,
+        {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                self.value().serialize(serializer)
+            }
+        }
+
         generate_primitive_conversions!($t);
     };
 }
@@ -358,5 +370,17 @@ where
         } else {
             Err(crate::DowncastErr::new::<Value<'value, 'dwarf, P>, Self>())
         }
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for unit<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.value().serialize(serializer)
     }
 }

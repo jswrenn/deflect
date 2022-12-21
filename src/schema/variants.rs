@@ -36,6 +36,7 @@ where
             unit: self.unit,
             iter: self.tree.root()?.children(),
             discriminant_type: &self.discriminant_type,
+            count: 0,
         })
     }
 }
@@ -49,6 +50,7 @@ where
     unit: &'dwarf crate::gimli::Unit<R, usize>,
     iter: crate::gimli::EntriesTreeIter<'dwarf, 'dwarf, 'tree, R>,
     discriminant_type: &'tree super::Type<'dwarf, R>,
+    count: usize,
 }
 
 impl<'dwarf, 'tree, R: crate::gimli::Reader<Offset = usize>> VariantsIter<'dwarf, 'tree, R>
@@ -75,11 +77,16 @@ where
                         .ok_or_else(|| crate::error::missing_child(crate::gimli::DW_TAG_member))?;
                     let entry = crate::get_type(entry.entry())?;
                     let entry = self.unit.entry(entry)?;
+
+                    let index = self.count;
+                    self.count = self.count.wrapping_add(1);
+
                     return Ok(Some(super::Variant::new(
                         self.dwarf,
                         self.unit,
                         entry,
                         discriminant_value,
+                        index,
                     )));
                 }
                 crate::gimli::DW_TAG_enumerator => {
@@ -90,11 +97,15 @@ where
                             discriminant_value(self.discriminant_type, dw_at_discr_value)
                         });
 
+                    let index = self.count;
+                    self.count = self.count.wrapping_add(1);
+
                     return Ok(Some(super::Variant::new(
                         self.dwarf,
                         self.unit,
                         entry.clone(),
                         discriminant_value,
+                        index,
                     )));
                 }
                 crate::gimli::DW_TAG_member => continue,

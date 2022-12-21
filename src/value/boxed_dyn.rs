@@ -38,7 +38,7 @@ where
     pub fn schema(&self) -> &crate::schema::BoxedDyn<'dwarf, P::Reader> {
         &self.schema
     }
-    
+
     fn data(&self, size: usize) -> Result<crate::Bytes<'value>, crate::Error> {
         let field =
             unsafe { super::Field::new(self.schema.pointer().clone(), self.value, self.provider) };
@@ -106,5 +106,18 @@ where
         let value = self.deref().map_err(crate::fmt_err)?;
         f.write_str("box ")?;
         value.fmt(f)
+    }
+}
+
+impl<'value, 'dwarf, P> serde::Serialize for BoxedDyn<'value, 'dwarf, P>
+where
+    P: crate::DebugInfoProvider,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = self.deref().map_err(crate::ser_err)?;
+        value.serialize(serializer)
     }
 }

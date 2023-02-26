@@ -18,7 +18,7 @@
 //!
 //! // initialize the debuginfo provider
 //! let context = deflect::default_provider()?;
-//! 
+//!
 //! // create some type-erased data
 //! let erased: Box<dyn Any> = Box::new(Foo { a: 42 });
 //!
@@ -30,29 +30,33 @@
 //!
 //! // pretty-print the reflected value
 //! assert_eq!(value.to_string(), "box Foo { a: 42 }");
-//! 
+//!
 //! // downcast into a `BoxedDyn` value
 //! let value: deflect::value::BoxedDyn = value.try_into()?;
 //!
 //! // dereference the boxed value
 //! let value: deflect::Value = value.deref()?;
-//! 
+//!
 //! // downcast into a `Struct` value
 //! let value: deflect::value::Struct = value.try_into()?;
-//! 
+//!
 //! // get the field `a` by name
 //! let Some(field) = value.field("a")? else {
 //!     panic!("no field named `a`!")
 //! };
-//! 
+//!
 //! // get the value of the field
 //! let value = field.value()?;
-//! 
+//!
 //! // downcast into a `u8`
 //! let value: u8 = value.try_into()?;
-//! 
+//!
 //! // check that it's equal to `42`!
 //! assert_eq!(value, 42);
+//!
+//! // reflect a type
+//! let type_: deflect::Type = deflect::reflect_type::<Foo>(&context)?;
+//!
 //! # Ok::<_, Box<dyn std::error::Error>>(())
 //! ```
 //! See the `examples` directory of this crate's source for additional examples.
@@ -259,22 +263,37 @@ pub trait Reflect {
 impl<T: ?Sized> Reflect for T {}
 
 impl dyn Reflect + '_ {
-    /// Produces a reflected `Value` of `&self`.
+    /// Produces a reflected [`Value`] of `&self`.
     pub fn reflect<'value, 'dwarf, P: DebugInfoProvider>(
         &'value self,
         provider: &'dwarf P,
     ) -> Result<Value<'value, 'dwarf, P>, crate::Error> {
-        let DebugInfo {
-            context,
-            unit,
-            entry,
-        } = provider.info_for(self.local_type_id() as _)?;
-        let entry = unit.entry(entry)?;
-        let r#type = schema::Type::from_die(context.dwarf(), unit, entry)?;
+        let r#type = do_reflect_type(self.local_type_id(), provider)?;
         let value =
             slice_from_raw_parts(self as *const Self as *const Byte, mem::size_of_val(self));
         unsafe { value::Value::with_type(r#type, &*value, provider) }
     }
+}
+
+/// Produces a reflected [`Type`].
+/// To reflect a value, use [`Reflect::reflect`] instead.
+pub fn reflect_type<'dwarf, T, P: DebugInfoProvider>(
+    provider: &'dwarf P,
+) -> Result<Type<'dwarf, P::Reader>, crate::Error> {
+    do_reflect_type(<T as Reflect>::local_type_id as usize, provider)
+}
+
+fn do_reflect_type<'dwarf, P: DebugInfoProvider>(
+    local_type_id: usize,
+    provider: &'dwarf P,
+) -> Result<Type<'dwarf, P::Reader>, crate::Error> {
+    let DebugInfo {
+        context,
+        unit,
+        entry,
+    } = provider.info_for(local_type_id as _)?;
+    let entry = unit.entry(entry)?;
+    Type::from_die(context.dwarf(), unit, entry)
 }
 
 /// Produces the DWARF unit and entry offset for the DIE of `T`.
